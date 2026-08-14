@@ -20,10 +20,32 @@ const dmMono = DM_Mono({
   weight: ["400", "500"],
 });
 
+const SITE_URL = "https://plann-it-cyan.vercel.app";
+const DESCRIPTION =
+  "PlannIt est une application gratuite de gestion de planning personnel : organise ta semaine, colore tes activités par type, reçois des rappels et synchronise ton emploi du temps avec Google Calendar.";
+
 export const metadata: Metadata = {
-  title: "PlannIt — Ton planning, enfin clair.",
-  description:
-    "PlannIt aide à organiser sa semaine : activités colorées par type, rappels, sync Google Calendar.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "PlannIt — Ton planning, enfin clair.",
+    template: "%s — PlannIt",
+  },
+  description: DESCRIPTION,
+  applicationName: "PlannIt",
+  openGraph: {
+    type: "website",
+    url: SITE_URL,
+    siteName: "PlannIt",
+    title: "PlannIt — Ton planning, enfin clair.",
+    description: DESCRIPTION,
+    locale: "fr_FR",
+    // image générée automatiquement depuis app/opengraph-image.tsx (convention Next.js)
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "PlannIt — Ton planning, enfin clair.",
+    description: DESCRIPTION,
+  },
 };
 
 export const viewport: Viewport = {

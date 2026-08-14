@@ -4,7 +4,12 @@ import { updateSession } from "@/lib/supabase/middleware";
 const PUBLIC_ONLY_PATHS = ["/", "/login", "/register", "/forgot-password"];
 // /auth/callback et /auth/reset-password doivent rester joignables dans tous
 // les cas (lien cliqué depuis un email, avant ou sans session active).
-const ALWAYS_ALLOWED_PREFIXES = ["/auth"];
+// /privacy et /terms doivent rester visibles même connecté (pages légales,
+// requises pour la validation Google OAuth) — pas de redirect ni dans un
+// sens ni dans l'autre, contrairement à PUBLIC_ONLY_PATHS. /opengraph-image
+// doit rester joignable sans session : les crawlers (Google, réseaux
+// sociaux) qui récupèrent l'aperçu de la page n'ont jamais de cookie auth.
+const ALWAYS_ALLOWED_PREFIXES = ["/auth", "/privacy", "/terms", "/opengraph-image"];
 
 export async function middleware(request: NextRequest) {
   const { supabaseResponse, user } = await updateSession(request);

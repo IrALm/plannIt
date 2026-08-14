@@ -1,7 +1,31 @@
 import Link from "next/link";
+import { Calendar, Palette, Bell, RefreshCw } from "lucide-react";
 import { Logo } from "@/components/icons/logo";
 import { Mascot } from "@/components/icons/mascot";
 import { buttonVariants } from "@/components/ui/button";
+
+const FEATURES = [
+  {
+    icon: Calendar,
+    title: "Vue semaine",
+    desc: "Toute ta semaine organisée en un coup d'œil, jour par jour.",
+  },
+  {
+    icon: Palette,
+    title: "Types d'activité personnalisés",
+    desc: "Réunion, sport, santé, études… chaque type a sa propre couleur.",
+  },
+  {
+    icon: Bell,
+    title: "Rappels",
+    desc: "30 minutes, 1 heure ou 2 heures avant chaque événement.",
+  },
+  {
+    icon: RefreshCw,
+    title: "Synchronisation Google Calendar",
+    desc: "Connecte ton compte Google et retrouve tes événements PlannIt directement dans ton agenda Google, sur tous tes appareils.",
+  },
+];
 
 export default function LandingPage() {
   return (
@@ -44,10 +68,58 @@ export default function LandingPage() {
         </div>
       </div>
 
-      <div className="flex items-center justify-center gap-2 py-5 font-mono text-[10.5px] tracking-[.06em] text-muted">
-        <span>100% GRATUIT</span>
-        <span className="opacity-50">·</span>
-        <span>SYNC GOOGLE CALENDAR</span>
+      {/* Qu'est-ce que PlannIt : contenu explicite pour les visiteurs (et la
+          revue Google OAuth) — le hero ci-dessus reste volontairement plus
+          émotionnel/concis, cette section explique concrètement le service. */}
+      <section className="px-6 py-10 max-w-lg mx-auto w-full">
+        <h2 className="font-serif text-[22px] mb-3 text-center">
+          Qu&apos;est-ce que Plann<span className="text-accent">It</span> ?
+        </h2>
+        <p className="text-[14px] leading-[1.65] text-ink-2 text-center max-w-md mx-auto">
+          PlannIt est une application web gratuite de gestion de planning
+          personnel. Elle permet de créer et organiser ses événements par
+          types d&apos;activité colorés, de recevoir des rappels, et de
+          synchroniser automatiquement son emploi du temps avec Google
+          Calendar — pour garder une vue claire de sa semaine, sur ordinateur
+          comme sur téléphone (PlannIt s&apos;installe comme une application
+          mobile).
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-8">
+          {FEATURES.map((f) => (
+            <div
+              key={f.title}
+              className="flex items-start gap-3 bg-surface border border-line rounded-card p-4"
+            >
+              <div className="size-9 rounded-chip bg-tint text-accent flex items-center justify-center shrink-0">
+                <f.icon size={18} />
+              </div>
+              <div>
+                <div className="text-[14px] font-semibold">{f.title}</div>
+                <div className="text-[12.5px] text-ink-2 mt-1 leading-[1.5]">
+                  {f.desc}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div className="flex flex-col items-center gap-3 py-6 border-t border-line">
+        <div className="flex items-center justify-center gap-2 font-mono text-[10.5px] tracking-[.06em] text-muted">
+          <span>100% GRATUIT</span>
+          <span className="opacity-50">·</span>
+          <span>SYNC GOOGLE CALENDAR</span>
+        </div>
+        <nav className="flex items-center gap-4 text-[12px] text-ink-2">
+          <Link href="/privacy" className="hover:text-ink underline underline-offset-2">
+            Politique de confidentialité
+          </Link>
+          <span className="opacity-40">·</span>
+          <Link href="/terms" className="hover:text-ink underline underline-offset-2">
+            Conditions d&apos;utilisation
+          </Link>
+        </nav>
       </div>
     </div>
   );

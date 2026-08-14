@@ -12,7 +12,10 @@ import { StepWelcome } from "./step-welcome";
 import { StepFeatures } from "./step-features";
 import { StepTypes, type SelectedType } from "./step-types";
 import { StepGoogle } from "./step-google";
+import { StepInstall } from "./step-install";
 import { StepDone } from "./step-done";
+
+const TOTAL_STEPS = 6;
 
 const DEFAULT_TYPES: SelectedType[] = [
   { name: "Réunion", color: "blue", selected: true },
@@ -27,7 +30,8 @@ const CTA_LABELS: Record<number, string> = {
   2: "Suivant",
   3: "Suivant",
   4: "Connecter",
-  5: "Aller au planning",
+  5: "Suivant",
+  6: "Aller au planning",
 };
 
 type OnboardingWizardProps = {
@@ -35,13 +39,13 @@ type OnboardingWizardProps = {
 };
 
 export function OnboardingWizard({ initialStep }: OnboardingWizardProps) {
-  const [step, setStep] = useState(Math.min(Math.max(initialStep, 1), 5));
+  const [step, setStep] = useState(Math.min(Math.max(initialStep, 1), TOTAL_STEPS));
   const [types, setTypes] = useState<SelectedType[]>(DEFAULT_TYPES);
   const [pending, startTransition] = useTransition();
   const searchParams = useSearchParams();
 
   // Retour du flux OAuth Google Calendar (redirigé ici par l'Edge Function
-  // google-calendar-oauth) : avance automatiquement à l'étape 5.
+  // google-calendar-oauth) : avance automatiquement à l'étape suivante.
   useEffect(() => {
     if (searchParams.get("google") === "connected" && step === 4) {
       goTo(5);
@@ -82,7 +86,7 @@ export function OnboardingWizard({ initialStep }: OnboardingWizardProps) {
       return;
     }
 
-    if (step === 5) {
+    if (step === TOTAL_STEPS) {
       startTransition(() => {
         completeOnboarding();
       });
@@ -96,7 +100,7 @@ export function OnboardingWizard({ initialStep }: OnboardingWizardProps) {
     <div className="min-h-screen bg-bg text-ink flex flex-col px-[22px] pt-3 pb-5 animate-plfade">
       <div className="flex items-center justify-between">
         <span className="font-mono text-[11px] tracking-[.1em] text-muted">
-          ÉTAPE {step} / 5
+          ÉTAPE {step} / {TOTAL_STEPS}
         </span>
         <button
           type="button"
@@ -108,7 +112,7 @@ export function OnboardingWizard({ initialStep }: OnboardingWizardProps) {
       </div>
 
       <div className="flex gap-[6px] mt-[10px]">
-        {[1, 2, 3, 4, 5].map((i) => (
+        {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((i) => (
           <span
             key={i}
             className={`h-[5px] flex-1 rounded-full ${i <= step ? "bg-accent" : "bg-line"}`}
@@ -123,7 +127,8 @@ export function OnboardingWizard({ initialStep }: OnboardingWizardProps) {
           <StepTypes types={types} onToggle={toggleType} onAddCustom={addCustomType} />
         )}
         {step === 4 && <StepGoogle />}
-        {step === 5 && <StepDone />}
+        {step === 5 && <StepInstall />}
+        {step === 6 && <StepDone />}
       </div>
 
       {step === 4 ? (

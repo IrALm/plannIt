@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Serif_Display, DM_Sans, DM_Mono } from "next/font/google";
+import { InstallPromptListener } from "@/components/pwa/install-prompt-listener";
 import "./globals.css";
 
 const dmSerifDisplay = DM_Serif_Display({
@@ -54,6 +55,7 @@ export default function RootLayout({
       <body
         className={`${dmSerifDisplay.variable} ${dmSans.variable} ${dmMono.variable} font-sans antialiased`}
       >
+        <InstallPromptListener />
         {children}
       </body>
     </html>

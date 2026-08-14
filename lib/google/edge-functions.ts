@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getURL } from "@/lib/utils/url";
 
 const FUNCTIONS_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1`;
 
@@ -22,11 +23,15 @@ async function authedFetch(path: string, options: RequestInit = {}) {
 /**
  * Démarre le flux OAuth Google Calendar : renvoie l'URL de consentement Google
  * à ouvrir. `returnTo` (ex. "/onboarding") est le chemin à rouvrir après le
- * callback — par défaut "/settings".
+ * callback — par défaut "/settings". L'origine (localhost en dev, domaine
+ * Vercel en prod) est déterminée côté serveur via getURL() et transmise à
+ * l'Edge Function, qui l'utilisera pour construire la redirection finale —
+ * pas de secret SITE_URL à changer manuellement entre les deux environnements.
  */
 export async function startGoogleCalendarConnect(returnTo = "/settings"): Promise<string> {
+  const origin = await getURL();
   const res = await authedFetch(
-    `google-calendar-oauth?return_to=${encodeURIComponent(returnTo)}`
+    `google-calendar-oauth?return_to=${encodeURIComponent(returnTo)}&origin=${encodeURIComponent(origin)}`
   );
   const data = await res.json();
   if (!res.ok || !data.url) throw new Error(data.error ?? "Échec de connexion Google");

@@ -21,8 +21,27 @@ function redirectUri() {
   return `${Deno.env.get("SUPABASE_URL")}/functions/v1/google-calendar-oauth`;
 }
 
-function siteUrl() {
+function fallbackSiteUrl() {
   return Deno.env.get("SITE_URL") ?? "http://localhost:3000";
+}
+
+/**
+ * Origines autorisées à recevoir la redirection post-OAuth : la valeur passée
+ * par le frontend (dev = localhost, prod = domaine Vercel, cf. getURL() côté
+ * Next.js) n'est acceptée que si elle figure ici — sinon fallback sur
+ * SITE_URL. Liste = ALLOWED_APP_ORIGINS ("a,b,c") si défini, sinon juste
+ * SITE_URL. Défense en profondeur : l'origine vient normalement déjà d'un
+ * appel authentifié server-side, pas d'un input utilisateur brut.
+ */
+function allowedOrigins(): string[] {
+  const raw = Deno.env.get("ALLOWED_APP_ORIGINS");
+  if (raw) return raw.split(",").map((s) => s.trim()).filter(Boolean);
+  return [fallbackSiteUrl()];
+}
+
+function resolveOrigin(candidate: string | null): string {
+  if (candidate && allowedOrigins().includes(candidate)) return candidate;
+  return fallbackSiteUrl();
 }
 
 Deno.serve(async (req) => {
@@ -54,20 +73,21 @@ Deno.serve(async (req) => {
   if (code && state) {
     const { data: stateRow } = await admin
       .from("oauth_states")
-      .select("user_id, return_to, created_at")
+      .select("user_id, return_to, origin, created_at")
       .eq("state", state)
       .single();
 
     if (!stateRow) {
-      return Response.redirect(`${siteUrl()}/settings?google=error`, 302);
+      return Response.redirect(`${fallbackSiteUrl()}/settings?google=error`, 302);
     }
     await admin.from("oauth_states").delete().eq("state", state);
     const returnTo = stateRow.return_to || "/settings";
+    const origin = stateRow.origin || fallbackSiteUrl();
 
     const isExpired =
       Date.now() - new Date(stateRow.created_at).getTime() > STATE_TTL_MS;
     if (isExpired) {
-      return Response.redirect(`${siteUrl()}${returnTo}?google=error`, 302);
+      return Response.redirect(`${origin}${returnTo}?google=error`, 302);
     }
 
     const tokenRes = await fetch(GOOGLE_TOKEN_URL, {
@@ -83,7 +103,7 @@ Deno.serve(async (req) => {
     });
 
     if (!tokenRes.ok) {
-      return Response.redirect(`${siteUrl()}${returnTo}?google=error`, 302);
+      return Response.redirect(`${origin}${returnTo}?google=error`, 302);
     }
 
     const tokens = await tokenRes.json();
@@ -118,7 +138,7 @@ Deno.serve(async (req) => {
       .update({ google_calendar_connected: true, google_email: googleEmail })
       .eq("user_id", stateRow.user_id);
 
-    return Response.redirect(`${siteUrl()}${returnTo}?google=connected`, 302);
+    return Response.redirect(`${origin}${returnTo}?google=connected`, 302);
   }
 
   // --- Initiation : appel fetch authentifié depuis le frontend ---
@@ -126,10 +146,11 @@ Deno.serve(async (req) => {
   if (!user) return json({ error: "unauthorized" }, 401);
 
   const returnTo = url.searchParams.get("return_to") || "/settings";
+  const origin = resolveOrigin(url.searchParams.get("origin"));
 
   const { data: stateRow, error } = await admin
     .from("oauth_states")
-    .insert({ user_id: user.id, return_to: returnTo })
+    .insert({ user_id: user.id, return_to: returnTo, origin })
     .select("state")
     .single();
 

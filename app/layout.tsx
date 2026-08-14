@@ -46,6 +46,12 @@ export const metadata: Metadata = {
     title: "PlannIt — Ton planning, enfin clair.",
     description: DESCRIPTION,
   },
+  // Vérification de propriété du domaine dans Google Search Console (requise
+  // pour la validation OAuth) — Next.js injecte automatiquement la balise
+  // <meta name="google-site-verification" ...> correspondante dans le <head>.
+  verification: {
+    google: "brIOVL2GJd6nCrIYF_YyWiCXpkaEpJbOZWXDO8btfII",
+  },
 };
 
 export const viewport: Viewport = {

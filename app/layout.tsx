@@ -42,6 +42,27 @@ const THEME_INIT_SCRIPT = `
 })();
 `;
 
+// Capté avant l'hydratation React (le script tourne dès le parsing du HTML) :
+// beforeinstallprompt peut se déclencher très tôt, avant que le useEffect de
+// InstallPromptListener n'ait le temps de s'attacher — sans ce script, on
+// perd l'événement silencieusement et le bouton d'install n'apparaît jamais.
+const INSTALL_PROMPT_CAPTURE_SCRIPT = `
+(function () {
+  window.__pwaInstallPrompt = null;
+  window.__pwaInstalled = false;
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    window.__pwaInstallPrompt = e;
+    window.dispatchEvent(new Event('pwa-install-prompt-ready'));
+  });
+  window.addEventListener('appinstalled', function () {
+    window.__pwaInstalled = true;
+    window.__pwaInstallPrompt = null;
+    window.dispatchEvent(new Event('pwa-installed'));
+  });
+})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -51,6 +72,7 @@ export default function RootLayout({
     <html lang="fr" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: INSTALL_PROMPT_CAPTURE_SCRIPT }} />
       </head>
       <body
         className={`${dmSerifDisplay.variable} ${dmSans.variable} ${dmMono.variable} font-sans antialiased`}

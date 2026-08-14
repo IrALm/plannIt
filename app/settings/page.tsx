@@ -9,6 +9,7 @@ import { GoogleIcon } from "@/components/icons/google-icon";
 import { ProfileSection } from "@/components/settings/profile-section";
 import { AppearanceSection } from "@/components/settings/appearance-section";
 import { RemindersSection } from "@/components/settings/reminders-section";
+import { InstallCard } from "@/components/pwa/install-card";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -75,6 +76,13 @@ export default async function SettingsPage() {
             {connected ? "Déconnecter" : "Connecter Google Calendar"}
           </Button>
         </form>
+      </div>
+
+      <div>
+        <div className="font-mono text-[10px] tracking-[.14em] uppercase text-muted mb-2">
+          Application
+        </div>
+        <InstallCard />
       </div>
 
       <AppearanceSection />

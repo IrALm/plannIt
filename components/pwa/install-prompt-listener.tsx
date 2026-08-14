@@ -3,37 +3,45 @@
 import { useEffect } from "react";
 import { usePwaStore, type BeforeInstallPromptEvent } from "@/stores/pwa.store";
 
+type WindowWithInstallPrompt = Window & {
+  __pwaInstallPrompt?: BeforeInstallPromptEvent | null;
+  __pwaInstalled?: boolean;
+};
+
 /**
- * Capture beforeinstallprompt le plus tôt possible (peut se déclencher avant
- * que l'utilisateur n'atteigne l'étape onboarding dédiée) et détecte si l'app
- * tourne déjà en mode standalone (installée). Monté une fois à la racine.
+ * Relaie vers le store Zustand ce que le script inline de app/layout.tsx a
+ * déjà capté (avant même l'hydratation React — cf. INSTALL_PROMPT_CAPTURE_SCRIPT),
+ * plus les événements suivants si beforeinstallprompt se déclenche plus tard.
+ * Détecte aussi si l'app tourne déjà en mode standalone (installée).
  */
 export function InstallPromptListener() {
   const setInstallPromptEvent = usePwaStore((s) => s.setInstallPromptEvent);
   const setInstalled = usePwaStore((s) => s.setInstalled);
 
   useEffect(() => {
+    const win = window as WindowWithInstallPrompt;
+
     const isStandalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       // iOS Safari
       (navigator as Navigator & { standalone?: boolean }).standalone === true;
-    if (isStandalone) setInstalled(true);
+    if (isStandalone || win.__pwaInstalled) setInstalled(true);
 
-    function handleBeforeInstallPrompt(event: Event) {
-      event.preventDefault();
-      setInstallPromptEvent(event as BeforeInstallPromptEvent);
+    if (win.__pwaInstallPrompt) setInstallPromptEvent(win.__pwaInstallPrompt);
+
+    function handlePromptReady() {
+      if (win.__pwaInstallPrompt) setInstallPromptEvent(win.__pwaInstallPrompt);
     }
-
-    function handleAppInstalled() {
+    function handleInstalled() {
       setInstalled(true);
       setInstallPromptEvent(null);
     }
 
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-    window.addEventListener("appinstalled", handleAppInstalled);
+    window.addEventListener("pwa-install-prompt-ready", handlePromptReady);
+    window.addEventListener("pwa-installed", handleInstalled);
     return () => {
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-      window.removeEventListener("appinstalled", handleAppInstalled);
+      window.removeEventListener("pwa-install-prompt-ready", handlePromptReady);
+      window.removeEventListener("pwa-installed", handleInstalled);
     };
   }, [setInstallPromptEvent, setInstalled]);
 

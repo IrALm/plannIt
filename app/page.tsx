@@ -30,9 +30,16 @@ const FEATURES = [
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-bg text-ink flex flex-col animate-plfade">
-      <div className="flex justify-center pt-6">
-        <Logo size={36} />
-      </div>
+      {/* Header : le nom "PlannIt" doit être lisible en clair, dès le
+          chargement, sans avoir à faire défiler — condition explicite de la
+          revue Google OAuth (cohérence avec le nom d'app configuré côté
+          écran de consentement). L'icône seule ne suffisait pas. */}
+      <header className="flex items-center justify-center gap-[9px] pt-6 pb-2">
+        <Logo size={30} />
+        <span className="font-serif text-[19px] tracking-[-.01em]">
+          Plann<span className="text-accent">It</span>
+        </span>
+      </header>
 
       <div className="flex-1 flex flex-col items-center justify-center text-center px-8 gap-[13px] max-w-sm mx-auto">
         <div className="relative flex items-center justify-center mb-0.5">
@@ -53,9 +60,14 @@ export default function LandingPage() {
           enfin clair.
         </h1>
 
-        <p className="text-[14.5px] leading-[1.55] text-ink-2 max-w-[250px]">
-          Fini le papier. Organise ta semaine, colore tes activités et ne rate
-          plus rien.
+        {/* Description factuelle et sans ambiguïté de l'objectif de
+            l'application — en plus de l'accroche ci-dessus, condition
+            explicite de la revue Google OAuth. */}
+        <p className="text-[14.5px] leading-[1.55] text-ink-2 max-w-[280px]">
+          <strong className="text-ink">PlannIt</strong> est une application
+          gratuite de gestion de planning personnel : crée tes événements,
+          organise-les par catégories colorées, reçois des rappels, et
+          synchronise-les automatiquement avec Google Calendar.
         </p>
 
         <div className="w-full flex flex-col gap-[11px] mt-2">
@@ -68,9 +80,9 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* Qu'est-ce que PlannIt : contenu explicite pour les visiteurs (et la
-          revue Google OAuth) — le hero ci-dessus reste volontairement plus
-          émotionnel/concis, cette section explique concrètement le service. */}
+      {/* Qu'est-ce que PlannIt : détail des fonctionnalités pour les
+          visiteurs (et la revue Google OAuth) — reprend et développe la
+          description factuelle du hero ci-dessus. */}
       <section className="px-6 py-10 max-w-lg mx-auto w-full">
         <h2 className="font-serif text-[22px] mb-3 text-center">
           Qu&apos;est-ce que Plann<span className="text-accent">It</span> ?

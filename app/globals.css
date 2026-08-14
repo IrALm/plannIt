@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+/* Design tokens — copiés verbatim depuis P.light / P.dark / EV dans
+   .claude/Design app PlannIt/design_handoff_plannit/PlannIt.dc.html */
+:root,
+:root[data-theme="light"] {
+  --bg: #efe9dc;
+  --surface: #fbf8f1;
+  --surface-2: #f2ecdd;
+  --ink: #26241e;
+  --ink-2: #5c574b;
+  --muted: #948e7e;
+  --line: #e2dac8;
+  --accent: #6e7b4e;
+  --accent-ink: #fbf8f1;
+  --tint: rgba(110, 123, 78, 0.12);
+}
+
+:root[data-theme="dark"] {
+  --bg: #1b1e17;
+  --surface: #242820;
+  --surface-2: #2c3127;
+  --ink: #ece7d8;
+  --ink-2: #b4af9c;
+  --muted: #8a8573;
+  --line: #353b2c;
+  --accent: #a6b87a;
+  --accent-ink: #1b1e17;
+  --tint: rgba(166, 184, 122, 0.15);
+}
+
+@keyframes plfade {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes plfloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@theme inline {
+  /* couleurs — indirection via var() pour que le data-theme runtime pilote les utilities Tailwind */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-tint: var(--tint);
+
+  /* couleurs d'activité — identiques clair/sombre */
+  --color-ev-blue: #3b82f6;
+  --color-ev-coral: #f0674f;
+  --color-ev-green: #3faf7a;
+  --color-ev-amber: #e0a63c;
+  --color-ev-purple: #9366ce;
+
+  /* sémantique */
+  --color-danger: #c0614a;
+
+  /* polices */
+  --font-serif: "DM Serif Display", ui-serif, serif;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, monospace;
+
+  /* rayons — cf. design system (input/bouton 13px, carte 14px, petit 10-11px, pill 100px) */
+  --radius-input: 13px;
+  --radius-card: 14px;
+  --radius-chip: 11px;
+  --radius-pill: 100px;
+  --radius-sheet: 22px;
+
+  /* ombres */
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.08);
+  --shadow-fab: 0 12px 26px -8px rgba(0, 0, 0, 0.35);
+  --shadow-sheet: 0 -16px 44px rgba(0, 0, 0, 0.28);
+
+  /* animations */
+  --animate-plfade: plfade 0.45s ease both;
+  --animate-plfloat: plfloat 3.5s ease-in-out infinite;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+}

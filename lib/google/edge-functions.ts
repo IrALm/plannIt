@@ -1,0 +1,66 @@
+import { createClient } from "@/lib/supabase/server";
+
+const FUNCTIONS_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1`;
+
+async function authedFetch(path: string, options: RequestInit = {}) {
+  const supabase = await createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) throw new Error("Non authentifié");
+
+  return fetch(`${FUNCTIONS_URL}/${path}`, {
+    ...options,
+    headers: {
+      ...options.headers,
+      Authorization: `Bearer ${session.access_token}`,
+      "Content-Type": "application/json",
+    },
+  });
+}
+
+/**
+ * Démarre le flux OAuth Google Calendar : renvoie l'URL de consentement Google
+ * à ouvrir. `returnTo` (ex. "/onboarding") est le chemin à rouvrir après le
+ * callback — par défaut "/settings".
+ */
+export async function startGoogleCalendarConnect(returnTo = "/settings"): Promise<string> {
+  const res = await authedFetch(
+    `google-calendar-oauth?return_to=${encodeURIComponent(returnTo)}`
+  );
+  const data = await res.json();
+  if (!res.ok || !data.url) throw new Error(data.error ?? "Échec de connexion Google");
+  return data.url as string;
+}
+
+export async function disconnectGoogleCalendar() {
+  await authedFetch("google-calendar-oauth", { method: "DELETE" });
+}
+
+type SyncEvent = {
+  id: string;
+  title?: string;
+  description?: string | null;
+  startAt?: string;
+  endAt?: string;
+};
+
+/**
+ * Best-effort : un échec de sync Google ne doit jamais faire échouer la
+ * sauvegarde locale de l'événement (cf. plan M6). Appelée après un
+ * create/update/delete réussi dans features/events/actions.ts.
+ */
+export async function syncEventToGoogle(
+  action: "create" | "update" | "delete",
+  event: SyncEvent
+) {
+  try {
+    await authedFetch("google-calendar", {
+      method: "POST",
+      body: JSON.stringify({ action, event }),
+    });
+  } catch {
+    // silencieux — la Google Calendar API peut être injoignable, le token
+    // expiré au-delà du refresh, ou l'utilisateur non connecté à Google.
+  }
+}

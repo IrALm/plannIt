@@ -21,32 +21,39 @@ export async function GET(request: Request) {
     const { error, data } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error && data.user) {
-      const admin = createAdminClient();
-
       // provider_token / provider_refresh_token : uniquement présents ici,
       // juste après l'échange du code — jamais récupérables plus tard via
       // getSession()/getUser(), d'où le stockage immédiat.
       const providerToken = data.session?.provider_token;
       const providerRefreshToken = data.session?.provider_refresh_token;
 
+      // Best-effort : un souci de stockage des tokens Calendar (ex. secret
+      // service_role manquant côté déploiement) ne doit jamais faire échouer
+      // la connexion elle-même — l'utilisateur pourra reconnecter Calendar
+      // depuis Réglages plus tard.
       if (providerToken && providerRefreshToken) {
-        await admin.from("google_calendar_tokens").upsert({
-          user_id: data.user.id,
-          access_token: providerToken,
-          refresh_token: providerRefreshToken,
-          // Durée de vie réelle du token Google inconnue depuis la session
-          // Supabase : on le marque déjà expiré pour forcer un rafraîchissement
-          // (via google-calendar/_shared/google/tokenRefresh.ts) au premier
-          // usage réel, qui renseignera alors la vraie expiration.
-          expires_at: new Date().toISOString(),
-          google_email: data.user.email,
-          scope: "https://www.googleapis.com/auth/calendar.events",
-        });
+        try {
+          const admin = createAdminClient();
+          await admin.from("google_calendar_tokens").upsert({
+            user_id: data.user.id,
+            access_token: providerToken,
+            refresh_token: providerRefreshToken,
+            // Durée de vie réelle du token Google inconnue depuis la session
+            // Supabase : on le marque déjà expiré pour forcer un rafraîchissement
+            // (via google-calendar/_shared/google/tokenRefresh.ts) au premier
+            // usage réel, qui renseignera alors la vraie expiration.
+            expires_at: new Date().toISOString(),
+            google_email: data.user.email,
+            scope: "https://www.googleapis.com/auth/calendar.events",
+          });
 
-        await admin
-          .from("user_preferences")
-          .update({ google_calendar_connected: true, google_email: data.user.email })
-          .eq("user_id", data.user.id);
+          await admin
+            .from("user_preferences")
+            .update({ google_calendar_connected: true, google_email: data.user.email })
+            .eq("user_id", data.user.id);
+        } catch (err) {
+          console.error("[auth/callback] échec stockage tokens Google Calendar", err);
+        }
       }
 
       const [{ data: profile }, { data: prefs }] = await Promise.all([

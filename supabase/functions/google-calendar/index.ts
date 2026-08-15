@@ -15,6 +15,7 @@ type SyncEvent = {
   startAt?: string;
   endAt?: string;
 };
+type AdminClient = ReturnType<typeof createAdminClient>;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -30,6 +31,39 @@ function toGoogleEvent(event: SyncEvent) {
     start: { dateTime: event.startAt },
     end: { dateTime: event.endAt },
   };
+}
+
+/** Crée l'événement côté Google et (ré)écrit le mapping — utilisé à la
+ * création initiale, et en secours quand une mise à jour vise un événement
+ * qui n'existe plus/jamais existé côté Google (cf. action "update"). */
+async function createOnGoogle(
+  admin: AdminClient,
+  accessToken: string,
+  userId: string,
+  event: SyncEvent
+) {
+  const res = await fetch(CALENDAR_EVENTS_API, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(toGoogleEvent(event)),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const created = await res.json();
+
+  await admin.from("google_calendar_event_map").upsert(
+    {
+      user_id: userId,
+      event_id: event.id,
+      google_event_id: created.id,
+      last_synced_at: new Date().toISOString(),
+    },
+    { onConflict: "event_id" }
+  );
+
+  return created.id as string;
 }
 
 Deno.serve(async (req) => {
@@ -51,28 +85,8 @@ Deno.serve(async (req) => {
     const admin = createAdminClient();
 
     if (action === "create") {
-      const res = await fetch(CALENDAR_EVENTS_API, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(toGoogleEvent(event)),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const created = await res.json();
-
-      await admin.from("google_calendar_event_map").upsert(
-        {
-          user_id: user.id,
-          event_id: event.id,
-          google_event_id: created.id,
-          last_synced_at: new Date().toISOString(),
-        },
-        { onConflict: "event_id" }
-      );
-
-      return json({ success: true, google_event_id: created.id });
+      const googleEventId = await createOnGoogle(admin, accessToken, user.id, event);
+      return json({ success: true, google_event_id: googleEventId });
     }
 
     const { data: mapRow } = await admin
@@ -81,9 +95,16 @@ Deno.serve(async (req) => {
       .eq("event_id", event.id)
       .single();
 
-    if (!mapRow) return json({ success: false, error: "not_synced" }, 404);
-
     if (action === "update") {
+      // Pas (ou plus) de mapping — soit jamais synchronisé, soit supprimé
+      // directement dans Google Calendar entre-temps : on recrée plutôt que
+      // d'échouer, pour qu'une modification dans PlannIt fasse toujours
+      // réapparaître l'événement côté Google.
+      if (!mapRow) {
+        await createOnGoogle(admin, accessToken, user.id, event);
+        return json({ success: true, recreated: true });
+      }
+
       const res = await fetch(
         `${CALENDAR_EVENTS_API}/${mapRow.google_event_id}`,
         {
@@ -95,6 +116,13 @@ Deno.serve(async (req) => {
           body: JSON.stringify(toGoogleEvent(event)),
         }
       );
+
+      if (res.status === 404 || res.status === 410) {
+        // L'événement mappé n'existe plus côté Google (supprimé directement
+        // là-bas) : on le recrée avec un nouvel id plutôt que d'abandonner.
+        await createOnGoogle(admin, accessToken, user.id, event);
+        return json({ success: true, recreated: true });
+      }
       if (!res.ok) throw new Error(await res.text());
 
       await admin
@@ -106,10 +134,12 @@ Deno.serve(async (req) => {
     }
 
     if (action === "delete") {
-      await fetch(`${CALENDAR_EVENTS_API}/${mapRow.google_event_id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
+      if (mapRow) {
+        await fetch(`${CALENDAR_EVENTS_API}/${mapRow.google_event_id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+      }
       await admin
         .from("google_calendar_event_map")
         .delete()

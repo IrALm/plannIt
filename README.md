@@ -127,7 +127,14 @@ Un seul bouton "Continuer avec Google" (`features/auth/actions.ts` → `signInWi
 
 ### Schéma Supabase & Edge Functions
 
-13 migrations (`supabase/migrations/`) appliquées, 5 Edge Functions déployées sur le projet `foukyqukmutuciunctbi` : `google-calendar-oauth` (déconnexion uniquement), `google-calendar` (sync CRUD), `send-email` (bienvenue), `send-push-reminders` (cron chaque minute), `send-weekly-recap` (cron toutes les 15 min, n'agit que lundi 00h-01h Paris).
+15 migrations (`supabase/migrations/`) appliquées, 6 Edge Functions déployées sur le projet `foukyqukmutuciunctbi` : `google-calendar-oauth` (déconnexion uniquement), `google-calendar` (sync CRUD PlannIt → Google), `sync-google-calendar` (sync retour Google → PlannIt, cron toutes les 10 min), `send-email` (bienvenue), `send-push-reminders` (cron chaque minute), `send-weekly-recap` (cron toutes les 15 min, n'agit que lundi 00h-01h Paris).
+
+### Sync Google Calendar — dans les deux sens
+
+- **PlannIt → Google** (existant) : chaque création/modif/suppression dans PlannIt appelle `google-calendar` (`lib/google/edge-functions.ts` → `syncEventToGoogle`), qui répercute côté Google et tient `google_calendar_event_map` à jour. **Auto-réparation** : si une modification vise un événement dont la copie Google a été supprimée directement là-bas (mapping absent ou Google renvoie 404/410), l'Edge Function le **recrée** côté Google plutôt que d'échouer silencieusement — un événement PlannIt ne peut plus rester "orphelin" côté Google après une modif.
+- **Google → PlannIt** (`sync-google-calendar`) : toutes les 10 min, utilise le `syncToken` officiel de l'API Calendar (incrémental — inclut les suppressions, contrairement à un simple `events.list` borné par date) pour importer tout événement créé/modifié/supprimé directement dans Google Calendar. Rappels par défaut appliqués aux imports (`user_preferences.default_reminders`). Événements toute la journée ignorés (le schéma `events` n'a pas cette notion). Premier sync borné à J-7/J+180 (au-delà, un événement Google resterait invisible — limite assumée pour un planning perso, pas un vrai agenda d'entreprise). `syncToken` invalide (410) → réinitialisé, resync complet au passage suivant.
+- Les deux sens partagent la même table de correspondance (`google_calendar_event_map`), donc pas de double-import ni de boucle : un événement créé dans PlannIt et vu ensuite dans le flux Google est reconnu comme déjà connu, jamais réimporté.
+- **Asymétrie volontaire sur les suppressions** (`events.synced_from_google`) : un événement supprimé côté Google n'efface sa copie PlannIt que s'il provenait lui-même de Google (import). Un événement créé dans PlannIt reste la propriété de PlannIt même si sa copie Google disparaît — il est simplement recréé côté Google au prochain edit (cf. auto-réparation ci-dessus), jamais supprimé de PlannIt à cause d'un geste fait côté Google.
 
 ```bash
 npx supabase login

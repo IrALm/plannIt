@@ -55,6 +55,7 @@ export type Database = {
           reminders: number[]
           reminders_sent: number[]
           start_at: string
+          synced_from_google: boolean
           title: string
           updated_at: string
           user_id: string
@@ -69,6 +70,7 @@ export type Database = {
           reminders?: number[]
           reminders_sent?: number[]
           start_at: string
+          synced_from_google?: boolean
           title: string
           updated_at?: string
           user_id: string
@@ -83,6 +85,7 @@ export type Database = {
           reminders?: number[]
           reminders_sent?: number[]
           start_at?: string
+          synced_from_google?: boolean
           title?: string
           updated_at?: string
           user_id?: string
@@ -143,6 +146,7 @@ export type Database = {
           google_email: string | null
           refresh_token: string
           scope: string | null
+          sync_token: string | null
           updated_at: string
           user_id: string
         }
@@ -153,6 +157,7 @@ export type Database = {
           google_email?: string | null
           refresh_token: string
           scope?: string | null
+          sync_token?: string | null
           updated_at?: string
           user_id: string
         }
@@ -163,6 +168,7 @@ export type Database = {
           google_email?: string | null
           refresh_token?: string
           scope?: string | null
+          sync_token?: string | null
           updated_at?: string
           user_id?: string
         }

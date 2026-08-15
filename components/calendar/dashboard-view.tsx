@@ -1,13 +1,16 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import Link from "next/link";
-import { isSameDay } from "date-fns";
+import { useRouter } from "next/navigation";
+import { isSameDay, format, parse } from "date-fns";
 import { Settings } from "lucide-react";
 import { Mascot } from "@/components/icons/mascot";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { WeekStrip } from "./week-strip";
 import { Timeline } from "./timeline";
+import { MonthView } from "./month-view";
 import { Fab } from "./fab";
 import { EventModal } from "./event-modal";
 import { useCalendarStore } from "@/stores/calendar.store";
@@ -22,7 +25,16 @@ type DashboardViewProps = {
   events: CalendarEvent[];
   types: EventType[];
   defaultReminders: number[];
+  view: "week" | "month";
+  anchorDate: string;
 };
+
+function monthUrl(date: Date) {
+  return `/dashboard?view=month&month=${format(date, "yyyy-MM")}`;
+}
+function dayUrl(date: Date) {
+  return `/dashboard?view=week&date=${format(date, "yyyy-MM-dd")}`;
+}
 
 export function DashboardView({
   displayName,
@@ -30,12 +42,29 @@ export function DashboardView({
   events,
   types,
   defaultReminders,
+  view,
+  anchorDate,
 }: DashboardViewProps) {
+  const router = useRouter();
+  // anchorDate est un Y-M-D pur (jamais un instant sérialisé, cf.
+  // lib/utils/date.ts) : reconstruit ici via le fuseau réel du navigateur,
+  // pas via new Date("yyyy-MM-dd") qui serait interprété en UTC par le spec
+  // JS et pourrait décaler le jour selon le fuseau de lecture.
+  const anchorDateObj = useMemo(() => parse(anchorDate, "yyyy-MM-dd", new Date()), [anchorDate]);
+
   const selectedDate = useCalendarStore((s) => s.selectedDate);
+  const setSelectedDate = useCalendarStore((s) => s.setSelectedDate);
   const modalOpen = useUIStore((s) => s.modalOpen);
   const openAddModal = useUIStore((s) => s.openAddModal);
   const openEditModal = useUIStore((s) => s.openEditModal);
   const editingEventId = useUIStore((s) => s.editingEventId);
+
+  // La semaine affichée (WeekStrip/Timeline) suit l'ancre résolue côté
+  // serveur (aujourd'hui par défaut, ou le jour tapé depuis la vue mois).
+  useEffect(() => {
+    if (view === "week") setSelectedDate(anchorDateObj);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, anchorDate]);
 
   const dayEvents = useMemo(
     () => events.filter((e) => isSameDay(new Date(e.startAt), selectedDate)),
@@ -58,7 +87,7 @@ export function DashboardView({
         <div className="flex-1 min-w-0">
           <div className="font-serif text-xl truncate">Bonjour, {displayName}</div>
           <div className="font-mono text-[10.5px] tracking-[.08em] text-muted mt-[3px]">
-            {formatHeaderDate(selectedDate)}
+            {view === "week" ? formatHeaderDate(selectedDate) : "Vue mensuelle"}
           </div>
         </div>
         <ThemeToggle className="shrink-0" />
@@ -70,8 +99,28 @@ export function DashboardView({
         </Link>
       </div>
 
-      <WeekStrip />
-      <Timeline events={dayEvents} onEventClick={openEditModal} />
+      <div className="px-[18px] pb-1">
+        <SegmentedControl
+          options={[
+            { value: "week", label: "Semaine" },
+            { value: "month", label: "Mois" },
+          ]}
+          value={view}
+          onChange={(next) =>
+            router.push(next === "month" ? monthUrl(anchorDateObj) : "/dashboard")
+          }
+        />
+      </div>
+
+      {view === "week" ? (
+        <>
+          <WeekStrip />
+          <Timeline events={dayEvents} onEventClick={openEditModal} />
+        </>
+      ) : (
+        <MonthView anchorDate={anchorDateObj} events={events} monthUrl={monthUrl} dayUrl={dayUrl} />
+      )}
+
       <Fab onClick={openAddModal} />
 
       {modalOpen && (

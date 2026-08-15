@@ -9,7 +9,7 @@ const EVENTS_API = "https://www.googleapis.com/calendar/v3/calendars/primary/eve
 // Google reste borné par la fenêtre de son sync initial, donc un événement
 // créé dans Google à plus de 180 jours ne remonterait jamais. Limite
 // assumée, documentée dans le README.
-const INITIAL_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
+const INITIAL_LOOKBACK_MS = 60 * 24 * 60 * 60 * 1000;
 const INITIAL_LOOKAHEAD_MS = 180 * 24 * 60 * 60 * 1000;
 
 type AdminClient = ReturnType<typeof createAdminClient>;

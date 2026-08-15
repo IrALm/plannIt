@@ -16,18 +16,20 @@ function urlBase64ToUint8Array(base64String: string) {
  * verrouillé) — pas de simple notification locale. Nécessite
  * NEXT_PUBLIC_VAPID_PUBLIC_KEY côté client et la brique planifiée
  * send-push-reminders côté Supabase (cf. migration 00011).
+ *
+ * Si l'utilisateur refuse la permission navigateur, on ne bloque rien ni
+ * n'affiche de message : le toggle revient simplement à off, comme s'il
+ * n'avait rien cliqué — il reste libre de retenter plus tard.
  */
 export function PushNotificationsToggle() {
   const [supported, setSupported] = useState(false);
   const [enabled, setEnabled] = useState(false);
-  const [denied, setDenied] = useState(false);
   const busy = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
     setSupported(true);
-    setDenied(Notification.permission === "denied");
 
     navigator.serviceWorker.ready.then(async (reg) => {
       const sub = await reg.pushManager.getSubscription();
@@ -37,10 +39,7 @@ export function PushNotificationsToggle() {
 
   async function enable() {
     const permission = await Notification.requestPermission();
-    if (permission !== "granted") {
-      setDenied(permission === "denied");
-      return;
-    }
+    if (permission !== "granted") return;
 
     const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
     if (!vapidPublicKey) return;
@@ -86,14 +85,7 @@ export function PushNotificationsToggle() {
 
   return (
     <div className="flex items-center justify-between py-[11px]">
-      <div>
-        <span className="text-sm">Notifications push</span>
-        {denied && !enabled && (
-          <div className="text-[11.5px] text-muted mt-0.5">
-            Bloquées par le navigateur — autorise-les dans les réglages du site.
-          </div>
-        )}
-      </div>
+      <span className="text-sm">Notifications push</span>
       <Switch checked={enabled} onCheckedChange={toggle} />
     </div>
   );

@@ -21,7 +21,10 @@ type ReminderPickerProps = {
  */
 export function ReminderPicker({ value, onChange }: ReminderPickerProps) {
   const [adding, setAdding] = useState(false);
-  const [amount, setAmount] = useState(15);
+  // Champ libre (pas un number contrôlé/clampé) : sinon vider l'input pour
+  // taper une nouvelle valeur le fait retomber sur 1 à chaque frappe, ce qui
+  // empêchait de saisir autre chose qu'un nombre commençant par 1.
+  const [amountInput, setAmountInput] = useState("15");
   const [unit, setUnit] = useState<ReminderUnit>("minute");
 
   const sorted = [...value].sort((a, b) => a - b);
@@ -31,11 +34,14 @@ export function ReminderPicker({ value, onChange }: ReminderPickerProps) {
   }
 
   function submitNew() {
+    const amount = parseInt(amountInput, 10);
+    if (!amount || amount < 1) return;
+
     const minutes = toMinutes(amount, unit);
     if (minutes > 0 && !value.includes(minutes)) {
       onChange([...value, minutes]);
     }
-    setAmount(15);
+    setAmountInput("15");
     setUnit("minute");
     setAdding(false);
   }
@@ -77,8 +83,12 @@ export function ReminderPicker({ value, onChange }: ReminderPickerProps) {
             autoFocus
             type="number"
             min={1}
-            value={amount}
-            onChange={(e) => setAmount(Math.max(1, Number(e.target.value) || 1))}
+            inputMode="numeric"
+            value={amountInput}
+            onChange={(e) => setAmountInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") submitNew();
+            }}
             className="w-16 h-9 rounded-input border border-line bg-bg px-2 text-[13.5px] font-mono focus:border-accent focus:outline-none"
           />
           <select

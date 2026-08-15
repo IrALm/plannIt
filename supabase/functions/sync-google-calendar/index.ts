@@ -1,8 +1,11 @@
+import { parse } from "npm:date-fns@4";
+import { fromZonedTime } from "npm:date-fns-tz@3.2.0";
 import { createAdminClient } from "../_shared/supabaseAdmin.ts";
 import { getValidAccessToken } from "../_shared/google/tokenRefresh.ts";
 import { captureException } from "../_shared/sentry.ts";
 
 const EVENTS_API = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
+const APP_TIME_ZONE = "Europe/Paris";
 
 // Fenêtre du tout premier sync (pas de syncToken encore) : le passé récent +
 // un horizon raisonnable pour un planning perso — au-delà, un syncToken
@@ -30,6 +33,30 @@ function json(body: unknown, status = 200) {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+/**
+ * Résout les bornes réelles d'un item Google, qu'il ait une heure précise
+ * (start.dateTime) ou soit "toute la journée" (start.date seul) — le schéma
+ * `events` n'a pas de notion d'événement toute la journée, donc on le
+ * représente comme un bloc couvrant exactement ces jours-là à Paris.
+ * end.date est déjà exclusif côté Google (jour suivant le dernier jour),
+ * donc directement utilisable comme borne de fin.
+ */
+function resolveEventRange(item: GoogleEventItem): { startAt: string; endAt: string; allDay: boolean } | null {
+  if (item.start?.dateTime && item.end?.dateTime) {
+    return { startAt: item.start.dateTime, endAt: item.end.dateTime, allDay: false };
+  }
+  if (item.start?.date && item.end?.date) {
+    const startLocal = parse(item.start.date, "yyyy-MM-dd", new Date());
+    const endLocal = parse(item.end.date, "yyyy-MM-dd", new Date());
+    return {
+      startAt: fromZonedTime(startLocal, APP_TIME_ZONE).toISOString(),
+      endAt: fromZonedTime(endLocal, APP_TIME_ZONE).toISOString(),
+      allDay: true,
+    };
+  }
+  return null;
 }
 
 /**
@@ -68,10 +95,13 @@ async function applyItem(
     return "deleted";
   }
 
-  // Événements toute la journée (start.date, pas start.dateTime) ignorés :
-  // le schéma events n'a pas de notion "toute la journée", uniquement des
-  // bornes précises.
-  if (!item.start?.dateTime || !item.end?.dateTime) return "skipped";
+  const range = resolveEventRange(item);
+  if (!range) return "skipped";
+
+  // Un rappel "30 min avant minuit" n'a pas de sens pour un événement toute
+  // la journée — seule la notification automatique de démarrage (offset 0,
+  // gérée par send-push-reminders indépendamment de `reminders`) s'applique.
+  const reminders = range.allDay ? [] : defaultReminders;
 
   if (mapRow) {
     const { data: existing } = await admin
@@ -84,15 +114,15 @@ async function applyItem(
     // Même précaution que la correction d'updateEvent côté Next.js : ne
     // réinitialiser reminders_sent que si l'heure a réellement changé, pour
     // ne pas spammer de rappels en double sur une modif cosmétique.
-    const startChanged = new Date(existing.start_at).getTime() !== new Date(item.start.dateTime).getTime();
+    const startChanged = new Date(existing.start_at).getTime() !== new Date(range.startAt).getTime();
 
     await admin
       .from("events")
       .update({
         title: item.summary || "(Sans titre)",
         description: item.description ?? null,
-        start_at: item.start.dateTime,
-        end_at: item.end.dateTime,
+        start_at: range.startAt,
+        end_at: range.endAt,
         ...(startChanged ? { reminders_sent: [] } : {}),
       })
       .eq("id", mapRow.event_id);
@@ -110,9 +140,9 @@ async function applyItem(
       user_id: userId,
       title: item.summary || "(Sans titre)",
       description: item.description ?? null,
-      start_at: item.start.dateTime,
-      end_at: item.end.dateTime,
-      reminders: defaultReminders,
+      start_at: range.startAt,
+      end_at: range.endAt,
+      reminders,
       google_event_id: item.id,
       synced_from_google: true,
     })

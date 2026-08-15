@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { sendWelcomeEmail } from "@/lib/email/send";
 
 const FIRST_LOGIN_WINDOW_MS = 60_000;
 
 /**
- * Callback de connexion Google OAuth (Supabase Auth — distinct de l'OAuth
- * Google Calendar de M6). Échange le code PKCE contre une session, puis route
- * vers la complétion de profil, l'onboarding, ou le dashboard selon l'état
- * déjà connu de l'utilisateur.
+ * Callback de connexion Google OAuth. Un seul écran de consentement Google
+ * couvre à la fois la connexion ET l'accès Google Calendar (scope demandé
+ * dès signInWithGoogle) — pas de 2e flux OAuth séparé. Échange le code PKCE
+ * contre une session, stocke les tokens Calendar si présents, puis route
+ * vers la complétion de profil, l'onboarding, ou le dashboard.
  */
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -19,6 +21,34 @@ export async function GET(request: Request) {
     const { error, data } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error && data.user) {
+      const admin = createAdminClient();
+
+      // provider_token / provider_refresh_token : uniquement présents ici,
+      // juste après l'échange du code — jamais récupérables plus tard via
+      // getSession()/getUser(), d'où le stockage immédiat.
+      const providerToken = data.session?.provider_token;
+      const providerRefreshToken = data.session?.provider_refresh_token;
+
+      if (providerToken && providerRefreshToken) {
+        await admin.from("google_calendar_tokens").upsert({
+          user_id: data.user.id,
+          access_token: providerToken,
+          refresh_token: providerRefreshToken,
+          // Durée de vie réelle du token Google inconnue depuis la session
+          // Supabase : on le marque déjà expiré pour forcer un rafraîchissement
+          // (via google-calendar/_shared/google/tokenRefresh.ts) au premier
+          // usage réel, qui renseignera alors la vraie expiration.
+          expires_at: new Date().toISOString(),
+          google_email: data.user.email,
+          scope: "https://www.googleapis.com/auth/calendar.events",
+        });
+
+        await admin
+          .from("user_preferences")
+          .update({ google_calendar_connected: true, google_email: data.user.email })
+          .eq("user_id", data.user.id);
+      }
+
       const [{ data: profile }, { data: prefs }] = await Promise.all([
         supabase
           .from("profiles")

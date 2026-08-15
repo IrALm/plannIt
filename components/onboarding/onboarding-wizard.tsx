@@ -1,27 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import type { EventColor } from "@/lib/supabase/types";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import {
-  setOnboardingStep,
-  completeOnboarding,
-  connectGoogleCalendarFromOnboarding,
-} from "@/app/onboarding/actions";
+import { setOnboardingStep, completeOnboarding } from "@/app/onboarding/actions";
 import { createEventTypes } from "@/features/calendar/actions";
 import { StepWelcome } from "./step-welcome";
 import { StepFeatures } from "./step-features";
 import { StepTypes, type SelectedType } from "./step-types";
-import { StepGoogle } from "./step-google";
 import { StepInstall } from "./step-install";
 import { StepDone } from "./step-done";
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 5;
 const TYPES_STEP = 3;
-const GOOGLE_STEP = 4;
 
 const DEFAULT_TYPES: SelectedType[] = [
   { name: "Réunion", color: "blue", selected: true },
@@ -35,9 +28,8 @@ const CTA_LABELS: Record<number, string> = {
   1: "C'est parti",
   2: "Suivant",
   3: "Suivant",
-  4: "Connecter",
-  5: "Suivant",
-  6: "Aller au planning",
+  4: "Suivant",
+  5: "Aller au planning",
 };
 
 type OnboardingWizardProps = {
@@ -48,21 +40,11 @@ export function OnboardingWizard({ initialStep }: OnboardingWizardProps) {
   const [step, setStep] = useState(Math.min(Math.max(initialStep, 1), TOTAL_STEPS));
   const [types, setTypes] = useState<SelectedType[]>(DEFAULT_TYPES);
   const [pending, startTransition] = useTransition();
-  const searchParams = useSearchParams();
   // Sérialise les appels setOnboardingStep : sans ça, des clics rapides sur
   // plusieurs étapes peuvent lancer des requêtes concurrentes qui se
   // terminent dans le désordre, et la base finit avec un onboarding_step
   // plus ancien que l'étape réellement affichée.
   const stepSaveQueue = useRef(Promise.resolve());
-
-  // Retour du flux OAuth Google Calendar (redirigé ici par l'Edge Function
-  // google-calendar-oauth) : avance automatiquement à l'étape suivante.
-  useEffect(() => {
-    if (searchParams.get("google") === "connected" && step === GOOGLE_STEP) {
-      goTo(GOOGLE_STEP + 1);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
 
   function toggleType(name: string) {
     setTypes((prev) =>
@@ -138,22 +120,13 @@ export function OnboardingWizard({ initialStep }: OnboardingWizardProps) {
         {step === 3 && (
           <StepTypes types={types} onToggle={toggleType} onAddCustom={addCustomType} />
         )}
-        {step === 4 && <StepGoogle />}
-        {step === 5 && <StepInstall />}
-        {step === 6 && <StepDone />}
+        {step === 4 && <StepInstall />}
+        {step === 5 && <StepDone />}
       </div>
 
-      {step === GOOGLE_STEP ? (
-        <form action={connectGoogleCalendarFromOnboarding.bind(null, GOOGLE_STEP)}>
-          <Button variant="primary" type="submit" className="mt-[14px]">
-            Connecter
-          </Button>
-        </form>
-      ) : (
-        <Button variant="primary" className="mt-[14px]" onClick={handleNext} disabled={pending}>
-          {pending ? "..." : CTA_LABELS[step]}
-        </Button>
-      )}
+      <Button variant="primary" className="mt-[14px]" onClick={handleNext} disabled={pending}>
+        {pending ? "..." : CTA_LABELS[step]}
+      </Button>
 
       {/* Repli sans JS : lien direct vers le dashboard si jamais handleNext échoue. */}
       <noscript>

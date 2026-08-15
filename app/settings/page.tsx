@@ -2,8 +2,8 @@ import Link from "next/link";
 import { ArrowLeft, Check } from "lucide-react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { signOut } from "@/features/auth/actions";
-import { connectGoogleCalendar, disconnectGoogleCalendarAction } from "./actions";
+import { signOut, signInWithGoogle } from "@/features/auth/actions";
+import { disconnectGoogleCalendarAction } from "./actions";
 import { Button } from "@/components/ui/button";
 import { GoogleIcon } from "@/components/icons/google-icon";
 import { ProfileSection } from "@/components/settings/profile-section";
@@ -78,12 +78,7 @@ export default async function SettingsPage() {
             </span>
           )}
         </div>
-        <form
-          action={
-            connected ? disconnectGoogleCalendarAction : connectGoogleCalendar.bind(null, "/settings")
-          }
-          className="mt-2"
-        >
+        <form action={connected ? disconnectGoogleCalendarAction : signInWithGoogle} className="mt-2">
           <Button type="submit" variant="secondary">
             {connected ? "Déconnecter" : "Connecter Google Calendar"}
           </Button>

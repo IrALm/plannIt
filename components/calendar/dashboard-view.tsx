@@ -18,11 +18,12 @@ import type { EventType } from "@/features/calendar/types";
 
 type DashboardViewProps = {
   displayName: string;
+  avatarUrl: string | null;
   events: CalendarEvent[];
   types: EventType[];
 };
 
-export function DashboardView({ displayName, events, types }: DashboardViewProps) {
+export function DashboardView({ displayName, avatarUrl, events, types }: DashboardViewProps) {
   const selectedDate = useCalendarStore((s) => s.selectedDate);
   const modalOpen = useUIStore((s) => s.modalOpen);
   const openAddModal = useUIStore((s) => s.openAddModal);
@@ -39,8 +40,13 @@ export function DashboardView({ displayName, events, types }: DashboardViewProps
   return (
     <div className="min-h-screen bg-bg text-ink flex flex-col animate-plfade max-w-md mx-auto md:border-x md:border-line">
       <div className="flex items-center gap-[11px] px-[18px] pt-[10px] pb-[6px]">
-        <div className="size-10 rounded-chip bg-tint flex items-center justify-center">
-          <Mascot size={26} />
+        <div className="size-10 rounded-chip bg-tint flex items-center justify-center overflow-hidden shrink-0">
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- SVG local simple
+            <img src={avatarUrl} alt="" className="w-full h-full" />
+          ) : (
+            <Mascot size={26} />
+          )}
         </div>
         <div className="flex-1 min-w-0">
           <div className="font-serif text-xl truncate">Bonjour, {displayName}</div>

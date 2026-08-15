@@ -38,6 +38,10 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|robots.txt|sitemap.xml|sw.js|workbox-.*\\.js|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // icons/ et avatars/ exclus par préfixe (pas juste par extension) : le
+    // contenu de avatars/ évolue librement (photos ajoutées par l'utilisateur
+    // dans n'importe quel format), pas la peine de maintenir une liste
+    // d'extensions à jour à chaque fois.
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|robots.txt|sitemap.xml|sw.js|workbox-.*\\.js|icons/|avatars/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif)$).*)",
   ],
 };

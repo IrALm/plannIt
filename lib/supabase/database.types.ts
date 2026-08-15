@@ -168,18 +168,21 @@ export type Database = {
       oauth_states: {
         Row: {
           created_at: string
+          origin: string | null
           return_to: string
           state: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          origin?: string | null
           return_to?: string
           state?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          origin?: string | null
           return_to?: string
           state?: string
           user_id?: string
@@ -193,6 +196,7 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          profile_completed: boolean
           updated_at: string
         }
         Insert: {
@@ -201,6 +205,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id: string
+          profile_completed?: boolean
           updated_at?: string
         }
         Update: {
@@ -209,6 +214,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          profile_completed?: boolean
           updated_at?: string
         }
         Relationships: []

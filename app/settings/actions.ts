@@ -38,6 +38,18 @@ export async function updateProfileName(name: string) {
   revalidatePath("/dashboard");
 }
 
+export async function updateProfileAvatar(avatarUrl: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  await supabase.from("profiles").update({ avatar_url: avatarUrl }).eq("id", user.id);
+  revalidatePath("/settings");
+  revalidatePath("/dashboard");
+}
+
 export async function updateThemePreference(theme: ThemePreference) {
   const supabase = await createClient();
   const {

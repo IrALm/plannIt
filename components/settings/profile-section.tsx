@@ -2,16 +2,20 @@
 
 import { useState, useTransition } from "react";
 import { Pencil } from "lucide-react";
-import { updateProfileName } from "@/app/settings/actions";
+import { updateProfileName, updateProfileAvatar } from "@/app/settings/actions";
+import { AVATAR_OPTIONS } from "@/features/profile/avatars";
 
 type ProfileSectionProps = {
   name: string;
   email: string;
+  avatarUrl: string | null;
 };
 
-export function ProfileSection({ name, email }: ProfileSectionProps) {
+export function ProfileSection({ name, email, avatarUrl }: ProfileSectionProps) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(name);
+  const [currentAvatar, setCurrentAvatar] = useState(avatarUrl);
+  const [pickingAvatar, setPickingAvatar] = useState(false);
   const [pending, startTransition] = useTransition();
   const initial = (value || email)[0]?.toUpperCase() ?? "?";
 
@@ -27,15 +31,33 @@ export function ProfileSection({ name, email }: ProfileSectionProps) {
     });
   }
 
+  function pickAvatar(src: string) {
+    setCurrentAvatar(src);
+    setPickingAvatar(false);
+    startTransition(async () => {
+      await updateProfileAvatar(src);
+    });
+  }
+
   return (
     <div>
       <div className="font-mono text-[10px] tracking-[.14em] uppercase text-muted mb-2">
         Profil
       </div>
       <div className="flex items-center gap-3 bg-surface border border-line rounded-card p-[13px]">
-        <div className="size-11 rounded-full bg-tint flex items-center justify-center font-serif text-[19px] text-accent shrink-0">
-          {initial}
-        </div>
+        <button
+          type="button"
+          onClick={() => setPickingAvatar((v) => !v)}
+          aria-label="Changer d'avatar"
+          className="size-11 rounded-full bg-tint flex items-center justify-center font-serif text-[19px] text-accent shrink-0 overflow-hidden cursor-pointer"
+        >
+          {currentAvatar ? (
+            // eslint-disable-next-line @next/next/no-img-element -- SVG local simple
+            <img src={currentAvatar} alt="Ton avatar" className="w-full h-full" />
+          ) : (
+            initial
+          )}
+        </button>
         <div className="flex-1 min-w-0">
           {editing ? (
             <input
@@ -63,6 +85,30 @@ export function ProfileSection({ name, email }: ProfileSectionProps) {
           </button>
         )}
       </div>
+
+      {pickingAvatar && (
+        <div className="grid grid-cols-6 gap-[10px] mt-3 max-h-[200px] overflow-y-auto pr-1">
+          {AVATAR_OPTIONS.map((avatar) => (
+            <button
+              key={avatar.id}
+              type="button"
+              onClick={() => pickAvatar(avatar.src)}
+              aria-label={avatar.label}
+              aria-pressed={avatar.src === currentAvatar}
+              className="rounded-full overflow-hidden aspect-square cursor-pointer"
+              style={{
+                boxShadow:
+                  avatar.src === currentAvatar
+                    ? "0 0 0 2px var(--bg), 0 0 0 4px var(--accent)"
+                    : "none",
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element -- SVG local simple */}
+              <img src={avatar.src} alt={avatar.label} className="w-full h-full" />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -15,7 +15,7 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name")
+    .select("full_name, avatar_url")
     .eq("id", user.id)
     .single();
 
@@ -27,5 +27,12 @@ export default async function DashboardPage() {
 
   const displayName = profile?.full_name || user.email?.split("@")[0] || "toi";
 
-  return <DashboardView displayName={displayName} events={events} types={types} />;
+  return (
+    <DashboardView
+      displayName={displayName}
+      avatarUrl={profile?.avatar_url ?? null}
+      events={events}
+      types={types}
+    />
+  );
 }

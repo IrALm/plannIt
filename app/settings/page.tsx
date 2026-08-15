@@ -21,7 +21,7 @@ export default async function SettingsPage() {
   if (!user) redirect("/login");
 
   const [{ data: profile }, { data: prefs }] = await Promise.all([
-    supabase.from("profiles").select("full_name").eq("id", user.id).single(),
+    supabase.from("profiles").select("full_name, avatar_url").eq("id", user.id).single(),
     supabase
       .from("user_preferences")
       .select("google_calendar_connected, google_email, default_reminders")
@@ -44,7 +44,11 @@ export default async function SettingsPage() {
         <ThemeToggle />
       </div>
 
-      <ProfileSection name={profile?.full_name ?? ""} email={user.email ?? ""} />
+      <ProfileSection
+        name={profile?.full_name ?? ""}
+        email={user.email ?? ""}
+        avatarUrl={profile?.avatar_url ?? null}
+      />
 
       <div>
         <div className="font-mono text-[10px] tracking-[.14em] uppercase text-muted mb-2">

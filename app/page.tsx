@@ -3,6 +3,7 @@ import { Calendar, Palette, Bell, RefreshCw } from "lucide-react";
 import { Logo } from "@/components/icons/logo";
 import { Mascot } from "@/components/icons/mascot";
 import { buttonVariants } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 const FEATURES = [
   {
@@ -34,11 +35,12 @@ export default function LandingPage() {
           chargement, sans avoir à faire défiler — condition explicite de la
           revue Google OAuth (cohérence avec le nom d'app configuré côté
           écran de consentement). L'icône seule ne suffisait pas. */}
-      <header className="flex items-center justify-center gap-[9px] pt-6 pb-2">
+      <header className="relative flex items-center justify-center gap-[9px] pt-6 pb-2 px-4">
         <Logo size={30} />
         <span className="font-serif text-[19px] tracking-[-.01em]">
           Plann<span className="text-accent">It</span>
         </span>
+        <ThemeToggle className="absolute right-4 top-4" />
       </header>
 
       <div className="flex-1 flex flex-col items-center justify-center text-center px-8 gap-[13px] max-w-sm mx-auto">

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { updatePassword, type AuthActionState } from "@/features/auth/actions";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 const INITIAL_STATE: AuthActionState = { error: null };
 
@@ -33,6 +34,9 @@ export function ResetPasswordForm() {
 
   return (
     <div className="flex flex-col px-6 pt-8 pb-6 max-w-sm mx-auto w-full animate-plfade">
+      <div className="flex justify-end mb-2">
+        <ThemeToggle />
+      </div>
       <div className="flex items-center gap-[11px]">
         <Mascot size={38} />
         <p className="text-[13.5px] text-ink-2 leading-[1.35]">

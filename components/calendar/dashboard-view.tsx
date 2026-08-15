@@ -5,6 +5,7 @@ import Link from "next/link";
 import { isSameDay } from "date-fns";
 import { Settings } from "lucide-react";
 import { Mascot } from "@/components/icons/mascot";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { WeekStrip } from "./week-strip";
 import { Timeline } from "./timeline";
 import { Fab } from "./fab";
@@ -47,6 +48,7 @@ export function DashboardView({ displayName, events, types }: DashboardViewProps
             {formatHeaderDate(selectedDate)}
           </div>
         </div>
+        <ThemeToggle className="shrink-0" />
         <Link
           href="/settings"
           className="size-[38px] rounded-chip border border-line bg-surface text-ink-2 flex items-center justify-center shrink-0"

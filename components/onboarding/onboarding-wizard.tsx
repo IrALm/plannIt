@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { EventColor } from "@/lib/supabase/types";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { setOnboardingStep, completeOnboarding } from "@/app/onboarding/actions";
 import { connectGoogleCalendar } from "@/app/settings/actions";
 import { createEventTypes } from "@/features/calendar/actions";
@@ -102,13 +103,16 @@ export function OnboardingWizard({ initialStep }: OnboardingWizardProps) {
         <span className="font-mono text-[11px] tracking-[.1em] text-muted">
           ÉTAPE {step} / {TOTAL_STEPS}
         </span>
-        <button
-          type="button"
-          onClick={() => startTransition(() => completeOnboarding())}
-          className="text-[13px] font-semibold text-ink-2 cursor-pointer"
-        >
-          Passer
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => startTransition(() => completeOnboarding())}
+            className="text-[13px] font-semibold text-ink-2 cursor-pointer"
+          >
+            Passer
+          </button>
+          <ThemeToggle />
+        </div>
       </div>
 
       <div className="flex gap-[6px] mt-[10px]">

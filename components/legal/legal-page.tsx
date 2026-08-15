@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/icons/logo";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 type LegalPageProps = {
   title: string;
@@ -17,11 +18,14 @@ export function LegalPage({ title, updatedAt, children }: LegalPageProps) {
             <ArrowLeft size={16} />
             Retour à l&apos;accueil
           </Link>
-          <div className="flex items-center gap-2">
-            <Logo size={24} />
-            <span className="font-serif text-[16px]">
-              Plann<span className="text-accent">It</span>
-            </span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Logo size={24} />
+              <span className="font-serif text-[16px]">
+                Plann<span className="text-accent">It</span>
+              </span>
+            </div>
+            <ThemeToggle />
           </div>
         </div>
 

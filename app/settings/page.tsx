@@ -10,6 +10,7 @@ import { ProfileSection } from "@/components/settings/profile-section";
 import { AppearanceSection } from "@/components/settings/appearance-section";
 import { RemindersSection } from "@/components/settings/reminders-section";
 import { InstallCard } from "@/components/pwa/install-card";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -39,7 +40,8 @@ export default async function SettingsPage() {
         >
           <ArrowLeft size={18} />
         </Link>
-        <h1 className="font-serif text-[22px]">Réglages</h1>
+        <h1 className="font-serif text-[22px] flex-1">Réglages</h1>
+        <ThemeToggle />
       </div>
 
       <ProfileSection name={profile?.full_name ?? ""} email={user.email ?? ""} />

@@ -7,6 +7,7 @@ import { Mascot } from "@/components/icons/mascot";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { GoogleButton } from "@/components/auth/google-button";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { signIn, signUp, type AuthActionState } from "@/features/auth/actions";
 
 type AuthFormProps = {
@@ -28,12 +29,15 @@ export function AuthForm({ mode }: AuthFormProps) {
 
   return (
     <div className="flex flex-col px-6 pt-2 pb-6 max-w-sm mx-auto w-full animate-plfade">
-      <Link
-        href="/"
-        className="self-start size-[38px] rounded-chip border border-line bg-surface text-ink-2 flex items-center justify-center"
-      >
-        <ArrowLeft size={18} />
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link
+          href="/"
+          className="size-[38px] rounded-chip border border-line bg-surface text-ink-2 flex items-center justify-center"
+        >
+          <ArrowLeft size={18} />
+        </Link>
+        <ThemeToggle />
+      </div>
 
       <div className="flex items-center gap-[11px] mt-[18px]">
         <Mascot size={38} />

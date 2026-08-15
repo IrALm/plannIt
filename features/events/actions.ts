@@ -239,24 +239,29 @@ export async function applyDelayCascade(
 
   if (fetchError || !toShift) return { error: "Impossible de récupérer les activités du jour." };
 
+  // En parallèle plutôt qu'un par un : chaque décalage implique un aller-retour
+  // vers Google Calendar (syncEventToGoogle), qui devient perceptiblement
+  // lent en série dès que plusieurs activités suivent dans la journée.
   const deltaMs = delayMinutes * 60_000;
-  for (const ev of toShift) {
-    const newStart = new Date(new Date(ev.start_at).getTime() + deltaMs).toISOString();
-    const newEnd = new Date(new Date(ev.end_at).getTime() + deltaMs).toISOString();
+  await Promise.all(
+    toShift.map(async (ev) => {
+      const newStart = new Date(new Date(ev.start_at).getTime() + deltaMs).toISOString();
+      const newEnd = new Date(new Date(ev.end_at).getTime() + deltaMs).toISOString();
 
-    await supabase
-      .from("events")
-      .update({ start_at: newStart, end_at: newEnd, reminders_sent: [] })
-      .eq("id", ev.id);
+      await supabase
+        .from("events")
+        .update({ start_at: newStart, end_at: newEnd, reminders_sent: [] })
+        .eq("id", ev.id);
 
-    await syncEventToGoogle("update", {
-      id: ev.id,
-      title: ev.title,
-      description: ev.description,
-      startAt: newStart,
-      endAt: newEnd,
-    });
-  }
+      await syncEventToGoogle("update", {
+        id: ev.id,
+        title: ev.title,
+        description: ev.description,
+        startAt: newStart,
+        endAt: newEnd,
+      });
+    })
+  );
 
   revalidatePath("/dashboard");
   return { error: null, shiftedCount: toShift.length };

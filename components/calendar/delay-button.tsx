@@ -78,7 +78,7 @@ export function DelayButton({ eventId }: DelayButtonProps) {
                 onClick={() => apply(m)}
                 className="h-11 rounded-input border border-accent bg-tint text-[13.5px] font-medium cursor-pointer disabled:opacity-50"
               >
-                {m} min
+                {pending ? "..." : `${m} min`}
               </button>
             ))}
           </div>
@@ -119,7 +119,7 @@ export function DelayButton({ eventId }: DelayButtonProps) {
                 onClick={applyCustom}
                 className="h-9 px-3 rounded-input bg-accent text-accent-ink text-[13px] font-semibold cursor-pointer disabled:opacity-50"
               >
-                OK
+                {pending ? "..." : "OK"}
               </button>
             </div>
           )}

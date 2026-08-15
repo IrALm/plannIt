@@ -14,6 +14,8 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PushNotificationsToggle } from "@/components/settings/push-notifications-toggle";
 import { WeeklyRecapToggle } from "@/components/settings/weekly-recap-toggle";
 import { WeatherCityInput } from "@/components/settings/weather-city-input";
+import { EventTypesManager } from "@/components/settings/event-types-manager";
+import { listEventTypes } from "@/features/calendar/actions";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -23,7 +25,7 @@ export default async function SettingsPage() {
 
   if (!user) redirect("/");
 
-  const [{ data: profile }, { data: prefs }] = await Promise.all([
+  const [{ data: profile }, { data: prefs }, eventTypes] = await Promise.all([
     supabase
       .from("profiles")
       .select("full_name, avatar_url, profile_completed")
@@ -36,6 +38,7 @@ export default async function SettingsPage() {
       )
       .eq("user_id", user.id)
       .single(),
+    listEventTypes(),
   ]);
 
   if (!profile?.profile_completed) redirect("/complete-profile");
@@ -114,6 +117,8 @@ export default async function SettingsPage() {
       <RemindersSection defaultReminders={prefs?.default_reminders ?? [30]} />
 
       <WeatherCityInput initialCity={prefs?.weather_city ?? null} />
+
+      <EventTypesManager types={eventTypes} />
 
       <form action={signOut} className="mt-auto">
         <Button type="submit" variant="danger">

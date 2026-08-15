@@ -40,10 +40,7 @@ async function handlePush(event: PushEvent) {
       body: data.body,
       tag: data.tag,
       icon: "/icons/icon.svg",
-      // PNG dédié, pas le SVG couleur : Android masque le badge à sa seule
-      // couche alpha (silhouette) et rend le SVG de façon peu fiable pour ce
-      // champ précis, d'où le carré générique observé sans ce fichier.
-      badge: "/icons/badge.png",
+      badge: "/icons/icon.svg",
       // Reste affichée jusqu'à ce que l'utilisateur clique/balaie, plutôt
       // que de disparaître seule après quelques secondes.
       requireInteraction: true,

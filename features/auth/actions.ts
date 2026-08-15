@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { mapAuthError } from "@/lib/supabase/errors";
 import { getURL } from "@/lib/utils/url";
 
-export type AuthActionState = { error: string | null };
+export type AuthActionState = { error: string | null; needsConfirmation?: boolean };
 export type ResetPasswordState = { error: string | null; success: boolean };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -18,22 +18,37 @@ export async function signUp(
   const password = String(formData.get("password") ?? "");
   const confirmPassword = String(formData.get("confirmPassword") ?? "");
 
-  if (!EMAIL_RE.test(email)) return { error: "Adresse email invalide." };
+  if (!EMAIL_RE.test(email))
+    return { error: "Adresse email invalide.", needsConfirmation: false };
   if (password.length < 6)
-    return { error: "Le mot de passe doit contenir au moins 6 caractères." };
+    return {
+      error: "Le mot de passe doit contenir au moins 6 caractères.",
+      needsConfirmation: false,
+    };
   if (password !== confirmPassword)
-    return { error: "Les mots de passe ne correspondent pas." };
+    return { error: "Les mots de passe ne correspondent pas.", needsConfirmation: false };
 
   const supabase = await createClient();
   const origin = await getURL();
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: { emailRedirectTo: `${origin}/auth/callback` },
   });
 
-  if (error) return { error: mapAuthError(error.message) };
+  if (error) return { error: mapAuthError(error.message), needsConfirmation: false };
+
+  // Si la confirmation par email est activée côté Supabase Auth (réglage par
+  // défaut), signUp() ne crée PAS de session immédiate : data.session est
+  // null tant que l'utilisateur n'a pas cliqué le lien reçu par email.
+  // Rediriger vers /onboarding dans ce cas le renvoie en boucle vers /login
+  // (middleware, pas de session) où la tentative de connexion échoue avec un
+  // message trompeur ("mot de passe incorrect") alors que le vrai problème
+  // est que le compte n'est pas encore confirmé.
+  if (!data.session) {
+    return { error: null, needsConfirmation: true };
+  }
 
   redirect("/onboarding");
 }

@@ -1,13 +1,17 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { EventColor } from "@/lib/supabase/types";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { setOnboardingStep, completeOnboarding, saveProfile } from "@/app/onboarding/actions";
-import { connectGoogleCalendar } from "@/app/settings/actions";
+import {
+  setOnboardingStep,
+  completeOnboarding,
+  saveProfile,
+  connectGoogleCalendarFromOnboarding,
+} from "@/app/onboarding/actions";
 import { createEventTypes } from "@/features/calendar/actions";
 import { AVATAR_OPTIONS } from "@/features/profile/avatars";
 import { StepProfile } from "./step-profile";
@@ -60,6 +64,11 @@ export function OnboardingWizard({
   const [profileError, setProfileError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const searchParams = useSearchParams();
+  // Sérialise les appels setOnboardingStep : sans ça, des clics rapides sur
+  // plusieurs étapes peuvent lancer des requêtes concurrentes qui se
+  // terminent dans le désordre, et la base finit avec un onboarding_step
+  // plus ancien que l'étape réellement affichée.
+  const stepSaveQueue = useRef(Promise.resolve());
 
   // Retour du flux OAuth Google Calendar (redirigé ici par l'Edge Function
   // google-calendar-oauth) : avance automatiquement à l'étape suivante.
@@ -82,9 +91,7 @@ export function OnboardingWizard({
 
   function goTo(next: number) {
     setStep(next);
-    startTransition(() => {
-      setOnboardingStep(next);
-    });
+    stepSaveQueue.current = stepSaveQueue.current.then(() => setOnboardingStep(next));
   }
 
   function handleNext() {
@@ -184,7 +191,7 @@ export function OnboardingWizard({
       </div>
 
       {step === GOOGLE_STEP ? (
-        <form action={connectGoogleCalendar.bind(null, "/onboarding")}>
+        <form action={connectGoogleCalendarFromOnboarding.bind(null, GOOGLE_STEP)}>
           <Button variant="primary" type="submit" className="mt-[14px]">
             Connecter
           </Button>

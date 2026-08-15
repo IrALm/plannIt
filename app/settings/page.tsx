@@ -18,16 +18,22 @@ export default async function SettingsPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login");
+  if (!user) redirect("/");
 
   const [{ data: profile }, { data: prefs }] = await Promise.all([
-    supabase.from("profiles").select("full_name, avatar_url").eq("id", user.id).single(),
+    supabase
+      .from("profiles")
+      .select("full_name, avatar_url, profile_completed")
+      .eq("id", user.id)
+      .single(),
     supabase
       .from("user_preferences")
       .select("google_calendar_connected, google_email, default_reminders")
       .eq("user_id", user.id)
       .single(),
   ]);
+
+  if (!profile?.profile_completed) redirect("/complete-profile");
 
   const connected = prefs?.google_calendar_connected ?? false;
 

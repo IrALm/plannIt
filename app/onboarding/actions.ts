@@ -33,39 +33,12 @@ export async function connectGoogleCalendarFromOnboarding(step: number, _formDat
   redirect(url);
 }
 
-export type SaveProfileState = { error: string | null };
-
-export async function saveProfile(
-  _prevState: SaveProfileState,
-  formData: FormData
-): Promise<SaveProfileState> {
-  const fullName = String(formData.get("fullName") ?? "").trim();
-  const avatarUrl = String(formData.get("avatarUrl") ?? "");
-
-  if (!fullName) return { error: "Dis-nous comment t'appeler." };
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "Session expirée, reconnecte-toi." };
-
-  const { error } = await supabase
-    .from("profiles")
-    .update({ full_name: fullName, avatar_url: avatarUrl || null, profile_completed: true })
-    .eq("id", user.id);
-
-  if (error) return { error: "Impossible d'enregistrer ton profil." };
-
-  return { error: null };
-}
-
 export async function completeOnboarding() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/");
 
   await supabase
     .from("user_preferences")

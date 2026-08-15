@@ -9,12 +9,9 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   setOnboardingStep,
   completeOnboarding,
-  saveProfile,
   connectGoogleCalendarFromOnboarding,
 } from "@/app/onboarding/actions";
 import { createEventTypes } from "@/features/calendar/actions";
-import { AVATAR_OPTIONS } from "@/features/profile/avatars";
-import { StepProfile } from "./step-profile";
 import { StepWelcome } from "./step-welcome";
 import { StepFeatures } from "./step-features";
 import { StepTypes, type SelectedType } from "./step-types";
@@ -22,9 +19,9 @@ import { StepGoogle } from "./step-google";
 import { StepInstall } from "./step-install";
 import { StepDone } from "./step-done";
 
-const TOTAL_STEPS = 7;
-const PROFILE_STEP = 1;
-const GOOGLE_STEP = 5;
+const TOTAL_STEPS = 6;
+const TYPES_STEP = 3;
+const GOOGLE_STEP = 4;
 
 const DEFAULT_TYPES: SelectedType[] = [
   { name: "Réunion", color: "blue", selected: true },
@@ -35,33 +32,21 @@ const DEFAULT_TYPES: SelectedType[] = [
 ];
 
 const CTA_LABELS: Record<number, string> = {
-  1: "Continuer",
-  2: "C'est parti",
+  1: "C'est parti",
+  2: "Suivant",
   3: "Suivant",
-  4: "Suivant",
-  5: "Connecter",
-  6: "Suivant",
-  7: "Aller au planning",
+  4: "Connecter",
+  5: "Suivant",
+  6: "Aller au planning",
 };
 
 type OnboardingWizardProps = {
   initialStep: number;
-  initialFullName?: string;
-  initialAvatarUrl?: string | null;
 };
 
-export function OnboardingWizard({
-  initialStep,
-  initialFullName = "",
-  initialAvatarUrl,
-}: OnboardingWizardProps) {
+export function OnboardingWizard({ initialStep }: OnboardingWizardProps) {
   const [step, setStep] = useState(Math.min(Math.max(initialStep, 1), TOTAL_STEPS));
   const [types, setTypes] = useState<SelectedType[]>(DEFAULT_TYPES);
-  const [fullName, setFullName] = useState(initialFullName);
-  const [avatarId, setAvatarId] = useState(
-    AVATAR_OPTIONS.find((a) => a.src === initialAvatarUrl)?.id ?? AVATAR_OPTIONS[0].id
-  );
-  const [profileError, setProfileError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const searchParams = useSearchParams();
   // Sérialise les appels setOnboardingStep : sans ça, des clics rapides sur
@@ -95,28 +80,7 @@ export function OnboardingWizard({
   }
 
   function handleNext() {
-    if (step === PROFILE_STEP) {
-      if (!fullName.trim()) {
-        setProfileError("Dis-nous comment t'appeler.");
-        return;
-      }
-      setProfileError(null);
-      const avatarSrc = AVATAR_OPTIONS.find((a) => a.id === avatarId)?.src ?? "";
-      const formData = new FormData();
-      formData.set("fullName", fullName);
-      formData.set("avatarUrl", avatarSrc);
-      startTransition(async () => {
-        const result = await saveProfile({ error: null }, formData);
-        if (result.error) {
-          setProfileError(result.error);
-          return;
-        }
-        goTo(PROFILE_STEP + 1);
-      });
-      return;
-    }
-
-    if (step === 4) {
+    if (step === TYPES_STEP) {
       const selected = types.filter((t) => t.selected);
       startTransition(async () => {
         await createEventTypes(
@@ -126,7 +90,7 @@ export function OnboardingWizard({
             isDefault: DEFAULT_TYPES.some((d) => d.name === t.name),
           }))
         );
-        goTo(5);
+        goTo(TYPES_STEP + 1);
       });
       return;
     }
@@ -148,15 +112,13 @@ export function OnboardingWizard({
           ÉTAPE {step} / {TOTAL_STEPS}
         </span>
         <div className="flex items-center gap-3">
-          {step !== PROFILE_STEP && (
-            <button
-              type="button"
-              onClick={() => startTransition(() => completeOnboarding())}
-              className="text-[13px] font-semibold text-ink-2 cursor-pointer"
-            >
-              Passer
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => startTransition(() => completeOnboarding())}
+            className="text-[13px] font-semibold text-ink-2 cursor-pointer"
+          >
+            Passer
+          </button>
           <ThemeToggle />
         </div>
       </div>
@@ -171,23 +133,14 @@ export function OnboardingWizard({
       </div>
 
       <div className="flex-1 flex flex-col mt-5">
-        {step === 1 && (
-          <StepProfile
-            fullName={fullName}
-            onFullNameChange={setFullName}
-            avatarId={avatarId}
-            onAvatarChange={setAvatarId}
-            error={profileError}
-          />
-        )}
-        {step === 2 && <StepWelcome />}
-        {step === 3 && <StepFeatures />}
-        {step === 4 && (
+        {step === 1 && <StepWelcome />}
+        {step === 2 && <StepFeatures />}
+        {step === 3 && (
           <StepTypes types={types} onToggle={toggleType} onAddCustom={addCustomType} />
         )}
-        {step === 5 && <StepGoogle />}
-        {step === 6 && <StepInstall />}
-        {step === 7 && <StepDone />}
+        {step === 4 && <StepGoogle />}
+        {step === 5 && <StepInstall />}
+        {step === 6 && <StepDone />}
       </div>
 
       {step === GOOGLE_STEP ? (

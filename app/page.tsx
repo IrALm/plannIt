@@ -2,8 +2,8 @@ import Link from "next/link";
 import { Calendar, Palette, Bell, RefreshCw } from "lucide-react";
 import { Logo } from "@/components/icons/logo";
 import { Mascot } from "@/components/icons/mascot";
-import { buttonVariants } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { GoogleButton } from "@/components/auth/google-button";
 
 const FEATURES = [
   {
@@ -72,13 +72,8 @@ export default function LandingPage() {
           synchronise-les automatiquement avec Google Calendar.
         </p>
 
-        <div className="w-full flex flex-col gap-[11px] mt-2">
-          <Link href="/register" className={buttonVariants("primary")}>
-            Créer un compte
-          </Link>
-          <Link href="/login" className={buttonVariants("secondary")}>
-            Se connecter
-          </Link>
+        <div className="w-full mt-2">
+          <GoogleButton />
         </div>
       </div>
 

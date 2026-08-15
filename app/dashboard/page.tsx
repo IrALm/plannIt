@@ -11,13 +11,15 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login");
+  if (!user) redirect("/");
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, avatar_url")
+    .select("full_name, avatar_url, profile_completed")
     .eq("id", user.id)
     .single();
+
+  if (!profile?.profile_completed) redirect("/complete-profile");
 
   const { start, end } = getWeekRange(new Date());
   const [events, types] = await Promise.all([

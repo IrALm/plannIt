@@ -100,6 +100,20 @@ export async function updateEvent(
   if (validationError) return { error: validationError };
 
   const supabase = await createClient();
+
+  // Si l'heure de début change, les offsets déjà marqués "envoyés" (pour
+  // l'ancien horaire) doivent être réinitialisés — sinon send-push-reminders
+  // les considère à tort comme déjà notifiés et ne renvoie plus rien pour le
+  // nouvel horaire, y compris le rappel automatique de démarrage. On ne le
+  // fait que si l'heure a réellement changé, pour ne pas spammer de rappels
+  // en double sur une simple modification de titre/description.
+  const { data: existing } = await supabase
+    .from("events")
+    .select("start_at")
+    .eq("id", id)
+    .single();
+  const startChanged = !existing || new Date(existing.start_at).getTime() !== new Date(input.startAt).getTime();
+
   const { error } = await supabase
     .from("events")
     .update({
@@ -109,6 +123,7 @@ export async function updateEvent(
       start_at: input.startAt,
       end_at: input.endAt,
       reminders: input.reminders,
+      ...(startChanged ? { reminders_sent: [] } : {}),
     })
     .eq("id", id);
 

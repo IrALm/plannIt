@@ -107,9 +107,13 @@ Deno.serve(async (req) => {
 
       for (const sub of userSubs) {
         try {
+          // urgency "high" : incite le push service (FCM côté Android) à
+          // livrer/réveiller sans délai plutôt qu'en best-effort différé,
+          // pertinent pour un rappel programmé à la minute près.
           await webpush.sendNotification(
             { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } },
-            payload
+            payload,
+            { urgency: "high" }
           );
           sentCount++;
         } catch (err) {

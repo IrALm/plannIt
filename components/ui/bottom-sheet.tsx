@@ -16,7 +16,12 @@ export function BottomSheet({ open, onClose, children }: BottomSheetProps) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50">
+    // stopPropagation ici : la feuille n'est pas rendue via un portail, donc
+    // sans ça un clic dedans (ex. bouton dans une carte cliquable, cf.
+    // DelayButton dans EventCard) remonte jusqu'au parent et déclenche AUSSI
+    // son propre onClick — d'où l'effet "écran figé + modal d'édition qui
+    // s'ouvre en plus" déjà observé.
+    <div className="fixed inset-0 z-50" onClick={(e) => e.stopPropagation()}>
       <div
         onClick={onClose}
         className="absolute inset-0 bg-[rgba(10,14,20,.5)]"

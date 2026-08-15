@@ -59,9 +59,18 @@ Aucune URL n'est codée en dur en fonction de l'environnement — tout passe par
 
 **Reste à faire côté Supabase Auth (dashboard, pas de CLI pour ça)** : Authentication → URL Configuration → ajouter `https://plann-it-cyan.vercel.app/**` aux Redirect URLs autorisées (actuellement seul `http://localhost:3000/**` y est). Sans ça, la connexion Google échouera en prod même si le code construit la bonne URL — Supabase refuse toute redirection hors liste blanche.
 
-### Emails transactionnels (Brevo)
+### Emails (Brevo)
 
-Email de bienvenue (`app/auth/callback/route.ts`, détecté par heuristique 1er login) et email de confirmation d'ajout d'événement (`features/events/actions.ts`), tous deux best-effort (un échec d'envoi ne bloque jamais le flux).
+Deux emails seulement — les rappels avant événement passent par les push notifications, pas par email :
+- **Bienvenue** (`app/auth/callback/route.ts`, détecté par heuristique 1er login) — best-effort, un échec d'envoi ne bloque jamais le login.
+- **Résumé hebdomadaire** — envoyé par l'Edge Function `send-weekly-recap`, appelée toutes les 15 min par `pg_cron` (job `send-weekly-recap`, migration `00013`) mais qui n'agit réellement que dans la fenêtre lundi 00h-01h à Paris ; un verrou (`weekly_recap_log`, contrainte unique sur `week_start`) garantit un seul envoi effectif par semaine même si plusieurs invocations tombent dans cette fenêtre. N'envoie **que** si l'utilisateur a au moins un événement prévu cette semaine-là, et seulement si `user_preferences.weekly_recap_enabled` est vrai (toggle dans Réglages, activé par défaut).
+
+Templates dans `supabase/functions/_shared/email/templates.ts`, portés depuis `.claude/Design email/design_handoff_emails/` (HTML de production, tables imbriquées + styles inline, pensé pour survivre à Gmail/Outlook/Apple Mail). Logo : `public/icons/icon-email.png` (généré via `sharp` à partir du SVG existant, hébergé automatiquement par Vercel).
+
+⚠️ **`BREVO_API_KEY` est actuellement invalide** — Brevo distingue deux types de clés bien distincts : une clé **SMTP** (préfixe `xsmtps-`, pour un relai SMTP classique) et une clé **API v3** (préfixe `xkeysib-`, pour l'API REST `https://api.brevo.com/v3/...` qu'on utilise ici). Le secret actuellement configuré est une clé SMTP — Brevo répond `401 Key not found` à chaque tentative, silencieusement absorbée par le best-effort (aucune erreur visible, mais rien ne part jamais). Pour corriger : dashboard Brevo → SMTP & API → onglet **API Keys** (pas SMTP) → générer/copier une clé commençant par `xkeysib-`, puis :
+```bash
+npx supabase secrets set BREVO_API_KEY=xkeysib-...
+```
 
 ### Rappels d'événements — vraies push notifications serveur
 
@@ -121,8 +130,9 @@ Vérifier l'installabilité : `npm run build && npm start`, puis Chrome DevTools
 
 Déployé : [https://plann-it-cyan.vercel.app](https://plann-it-cyan.vercel.app).
 
-1. ✅ **Supabase** : les 12 migrations sont appliquées, les 4 Edge Functions (`google-calendar-oauth`, `google-calendar`, `send-email`, `send-push-reminders`) déployées, tous les secrets configurés (sections ci-dessus) — y compris le cron `send-event-reminders` (`* * * * *`), vérifié en exécution réelle (`cron.job_run_details` → `succeeded`, réponses HTTP 200).
+1. ✅ **Supabase** : les 13 migrations sont appliquées, les 5 Edge Functions (`google-calendar-oauth`, `google-calendar`, `send-email`, `send-push-reminders`, `send-weekly-recap`) déployées, tous les secrets configurés (sections ci-dessus) — y compris les deux crons (`send-event-reminders` chaque minute, `send-weekly-recap` toutes les 15 min), vérifiés en exécution réelle (`cron.job_run_details` → `succeeded`, réponses HTTP 200).
 2. ⚠️ **Vercel** : ajouter `NEXT_PUBLIC_SITE_URL=https://plann-it-cyan.vercel.app`, `SUPABASE_SERVICE_ROLE_KEY` et `NEXT_PUBLIC_VAPID_PUBLIC_KEY` dans les env vars du projet (dashboard Vercel → Settings → Environment Variables) — pas encore fait depuis cette session. `NEXT_PUBLIC_SENTRY_DSN` + `SENTRY_*` restent optionnels.
 3. ⚠️ **Supabase Auth** : ajouter `https://plann-it-cyan.vercel.app/**` aux Redirect URLs autorisées (dashboard → Authentication → URL Configuration).
-4. ✅ **Google Cloud Console** : rien à changer.
-5. À vérifier de bout en bout une fois les points ⚠️ traités : "Continuer avec Google" → consentement (login + Calendar en un seul écran) → complétion profil → onboarding → dashboard → ajout d'événement avec rappel → activer les notifications push dans Réglages → sync Google Calendar → email de confirmation → notification push reçue à l'heure du rappel.
+4. ⚠️ **Brevo** : `BREVO_API_KEY` est une clé du mauvais type (SMTP au lieu d'API v3) — aucun email ne part tant qu'elle n'est pas remplacée, cf. section Emails ci-dessus.
+5. ✅ **Google Cloud Console** : rien à changer.
+6. À vérifier de bout en bout une fois les points ⚠️ traités : "Continuer avec Google" → consentement (login + Calendar en un seul écran) → complétion profil → email de bienvenue reçu → onboarding → dashboard → vue mois → ajout d'événement avec rappel → activer les notifications push dans Réglages → sync Google Calendar → notification push reçue à l'heure du rappel.

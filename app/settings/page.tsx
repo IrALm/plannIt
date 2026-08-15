@@ -12,6 +12,7 @@ import { RemindersSection } from "@/components/settings/reminders-section";
 import { InstallCard } from "@/components/pwa/install-card";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PushNotificationsToggle } from "@/components/settings/push-notifications-toggle";
+import { WeeklyRecapToggle } from "@/components/settings/weekly-recap-toggle";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -29,7 +30,7 @@ export default async function SettingsPage() {
       .single(),
     supabase
       .from("user_preferences")
-      .select("google_calendar_connected, google_email, default_reminders")
+      .select("google_calendar_connected, google_email, default_reminders, weekly_recap_enabled")
       .eq("user_id", user.id)
       .single(),
   ]);
@@ -101,6 +102,9 @@ export default async function SettingsPage() {
         </div>
         <div className="bg-surface border border-line rounded-card px-[14px]">
           <PushNotificationsToggle />
+          <div className="border-t border-line">
+            <WeeklyRecapToggle enabled={prefs?.weekly_recap_enabled ?? true} />
+          </div>
         </div>
       </div>
 

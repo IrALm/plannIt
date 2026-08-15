@@ -259,6 +259,7 @@ export type Database = {
           theme: Database["public"]["Enums"]["theme_preference"]
           updated_at: string
           user_id: string
+          weekly_recap_enabled: boolean
         }
         Insert: {
           default_reminders?: number[]
@@ -269,6 +270,7 @@ export type Database = {
           theme?: Database["public"]["Enums"]["theme_preference"]
           updated_at?: string
           user_id: string
+          weekly_recap_enabled?: boolean
         }
         Update: {
           default_reminders?: number[]
@@ -279,6 +281,22 @@ export type Database = {
           theme?: Database["public"]["Enums"]["theme_preference"]
           updated_at?: string
           user_id?: string
+          weekly_recap_enabled?: boolean
+        }
+        Relationships: []
+      }
+      weekly_recap_log: {
+        Row: {
+          sent_at: string
+          week_start: string
+        }
+        Insert: {
+          sent_at?: string
+          week_start: string
+        }
+        Update: {
+          sent_at?: string
+          week_start?: string
         }
         Relationships: []
       }

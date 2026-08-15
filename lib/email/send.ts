@@ -27,11 +27,3 @@ export async function sendWelcomeEmail(email: string, name?: string) {
     // silencieux
   }
 }
-
-export async function sendEventCreatedEmail(email: string, title: string, whenLabel: string) {
-  try {
-    await callSendEmail({ type: "event_created", payload: { email, title, whenLabel } });
-  } catch {
-    // silencieux
-  }
-}

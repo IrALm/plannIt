@@ -87,10 +87,3 @@ export function formatHeaderDate(date: Date): string {
 export function formatTime(iso: string): string {
   return formatInTimeZone(new Date(iso), APP_TIME_ZONE, "HH:mm");
 }
-
-/** "jeu 15 janv. · 08:30 → 09:30" — utilisé dans les emails transactionnels. */
-export function formatEventWhenLabel(startISO: string, endISO: string): string {
-  const start = new Date(startISO);
-  const dayLabel = formatInTimeZone(start, APP_TIME_ZONE, "EEE d MMM", { locale: fr });
-  return `${dayLabel} · ${formatTime(startISO)} → ${formatTime(endISO)}`;
-}

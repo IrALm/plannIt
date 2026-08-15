@@ -3,8 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { syncEventToGoogle } from "@/lib/google/edge-functions";
-import { sendEventCreatedEmail } from "@/lib/email/send";
-import { formatEventWhenLabel } from "@/lib/utils/date";
 import type { CalendarEvent, EventActionState, EventInput } from "./types";
 
 export async function getEventsByRange(
@@ -89,14 +87,6 @@ export async function createEvent(
     startAt: input.startAt,
     endAt: input.endAt,
   });
-
-  if (user.email) {
-    await sendEventCreatedEmail(
-      user.email,
-      input.title,
-      formatEventWhenLabel(input.startAt, input.endAt)
-    );
-  }
 
   revalidatePath("/dashboard");
   return { error: null };

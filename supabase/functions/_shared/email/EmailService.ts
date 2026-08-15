@@ -1,36 +1,34 @@
 import { sendViaBrevo } from "./brevoClient.ts";
-import {
-  welcomeEmail,
-  eventCreatedEmail,
-  eventReminderEmail,
-  notificationEmail,
-} from "./templates.ts";
+import { welcomeEmail, weeklyRecapEmail, type WeeklyRecapEvent } from "./templates.ts";
 
 type Recipient = { email: string; name?: string };
 
+// Seuls deux emails sont envoyés par l'app — les rappels avant événement
+// passent par les push notifications (cf. send-push-reminders), pas par
+// email.
 export const EmailService = {
-  async sendWelcomeEmail(to: Recipient) {
-    const { subject, html } = welcomeEmail(to.name ?? to.email.split("@")[0]);
+  async sendWelcomeEmail(to: Recipient, siteUrl: string) {
+    const { subject, html } = welcomeEmail({ name: to.name ?? to.email.split("@")[0], siteUrl });
     return sendViaBrevo({ to, subject, html });
   },
 
-  async sendEventCreatedEmail(to: Recipient, title: string, whenLabel: string) {
-    const { subject, html } = eventCreatedEmail(title, whenLabel);
-    return sendViaBrevo({ to, subject, html });
-  },
-
-  async sendEventReminder(
+  async sendWeeklyRecap(
     to: Recipient,
-    title: string,
-    whenLabel: string,
-    minutesBefore: number
+    siteUrl: string,
+    params: {
+      weekLabel: string;
+      totalCount: number;
+      distinctTypeCount: number;
+      activeDayCount: number;
+      highlights: WeeklyRecapEvent[];
+      moreCount: number;
+    }
   ) {
-    const { subject, html } = eventReminderEmail(title, whenLabel, minutesBefore);
-    return sendViaBrevo({ to, subject, html });
-  },
-
-  async sendNotificationEmail(to: Recipient, subjectLine: string, message: string) {
-    const { subject, html } = notificationEmail(subjectLine, message);
+    const { subject, html } = weeklyRecapEmail({
+      name: to.name ?? to.email.split("@")[0],
+      siteUrl,
+      ...params,
+    });
     return sendViaBrevo({ to, subject, html });
   },
 };

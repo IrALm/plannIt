@@ -60,3 +60,16 @@ export async function updateDefaultReminders(minutes: number[]) {
     .update({ default_reminders: minutes })
     .eq("user_id", user.id);
 }
+
+export async function updateWeeklyRecapEnabled(enabled: boolean) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  await supabase
+    .from("user_preferences")
+    .update({ weekly_recap_enabled: enabled })
+    .eq("user_id", user.id);
+}

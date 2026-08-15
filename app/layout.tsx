@@ -50,7 +50,7 @@ export const metadata: Metadata = {
   // pour la validation OAuth) — Next.js injecte automatiquement la balise
   // <meta name="google-site-verification" ...> correspondante dans le <head>.
   verification: {
-    google: "brIOVL2GJd6nCrIYF_YyWiCXpkaEpJbOZWXDO8btfII",
+    google: "QtzDCjjPhdoDhA60CU6qAiCjyKK2_9WCznc5l8KWeZI",
   },
 };
 

@@ -117,13 +117,30 @@ Deno.serve(async (req) => {
         }
       );
 
-      if (res.status === 404 || res.status === 410) {
-        // L'événement mappé n'existe plus côté Google (supprimé directement
-        // là-bas) : on le recrée avec un nouvel id plutôt que d'abandonner.
+      const bodyText = await res.text();
+
+      // Google ne renvoie pas toujours une vraie erreur HTTP pour un événement
+      // supprimé : une suppression via l'UI Google Calendar laisse souvent
+      // l'événement en place avec status:"cancelled" (suppression "douce",
+      // pour la cohérence de sync) — le PATCH réussit alors (200 OK) sans
+      // rien faire réapparaître. D'où la vérification du statut en plus du
+      // code HTTP.
+      let isCancelled = false;
+      if (res.ok) {
+        try {
+          isCancelled = JSON.parse(bodyText)?.status === "cancelled";
+        } catch {
+          // réponse non-JSON inattendue : traité comme un succès normal ci-dessous.
+        }
+      }
+
+      if (res.status === 404 || res.status === 410 || isCancelled) {
+        // L'événement mappé n'existe plus (ou plus visiblement) côté Google :
+        // on le recrée avec un nouvel id plutôt que d'abandonner.
         await createOnGoogle(admin, accessToken, user.id, event);
         return json({ success: true, recreated: true });
       }
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(bodyText);
 
       await admin
         .from("google_calendar_event_map")

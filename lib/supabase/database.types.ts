@@ -23,6 +23,7 @@ export type Database = {
           name: string
           updated_at: string
           user_id: string
+          weather_sensitive: boolean
         }
         Insert: {
           color: Database["public"]["Enums"]["event_color"]
@@ -32,6 +33,7 @@ export type Database = {
           name: string
           updated_at?: string
           user_id: string
+          weather_sensitive?: boolean
         }
         Update: {
           color?: Database["public"]["Enums"]["event_color"]
@@ -41,6 +43,7 @@ export type Database = {
           name?: string
           updated_at?: string
           user_id?: string
+          weather_sensitive?: boolean
         }
         Relationships: []
       }
@@ -59,6 +62,7 @@ export type Database = {
           title: string
           updated_at: string
           user_id: string
+          weather_alert_sent: boolean
         }
         Insert: {
           created_at?: string
@@ -74,6 +78,7 @@ export type Database = {
           title: string
           updated_at?: string
           user_id: string
+          weather_alert_sent?: boolean
         }
         Update: {
           created_at?: string
@@ -89,6 +94,7 @@ export type Database = {
           title?: string
           updated_at?: string
           user_id?: string
+          weather_alert_sent?: boolean
         }
         Relationships: [
           {
@@ -265,6 +271,9 @@ export type Database = {
           theme: Database["public"]["Enums"]["theme_preference"]
           updated_at: string
           user_id: string
+          weather_city: string | null
+          weather_lat: number | null
+          weather_lon: number | null
           weekly_recap_enabled: boolean
         }
         Insert: {
@@ -276,6 +285,9 @@ export type Database = {
           theme?: Database["public"]["Enums"]["theme_preference"]
           updated_at?: string
           user_id: string
+          weather_city?: string | null
+          weather_lat?: number | null
+          weather_lon?: number | null
           weekly_recap_enabled?: boolean
         }
         Update: {
@@ -287,6 +299,9 @@ export type Database = {
           theme?: Database["public"]["Enums"]["theme_preference"]
           updated_at?: string
           user_id?: string
+          weather_city?: string | null
+          weather_lat?: number | null
+          weather_lon?: number | null
           weekly_recap_enabled?: boolean
         }
         Relationships: []

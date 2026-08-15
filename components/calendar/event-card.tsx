@@ -1,13 +1,15 @@
 import type { CalendarEvent } from "@/features/events/types";
 import { EVENT_COLOR_HEX } from "@/features/calendar/types";
 import { formatTime } from "@/lib/utils/date";
+import { DelayButton } from "./delay-button";
 
 type EventCardProps = {
   event: CalendarEvent;
   onClick: () => void;
+  showDelayButton?: boolean;
 };
 
-export function EventCard({ event, onClick }: EventCardProps) {
+export function EventCard({ event, onClick, showDelayButton }: EventCardProps) {
   const color = EVENT_COLOR_HEX[event.color];
 
   return (
@@ -31,6 +33,7 @@ export function EventCard({ event, onClick }: EventCardProps) {
             </span>
           </div>
         </div>
+        {showDelayButton && <DelayButton eventId={event.id} />}
       </div>
     </div>
   );

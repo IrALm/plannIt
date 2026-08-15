@@ -2,9 +2,9 @@
 
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
+import { format, differenceInCalendarDays } from "date-fns";
 import { fr } from "date-fns/locale";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import {
   ResponsiveContainer,
   PieChart,
@@ -28,6 +28,7 @@ type StatsViewProps = {
   anchorDate: Date;
   period: "month" | "year";
   events: CalendarEvent[];
+  previousPeriodEvents: CalendarEvent[];
   types: EventType[];
   monthStatsUrl: (date: Date) => string;
   yearStatsUrl: (date: Date) => string;
@@ -39,6 +40,7 @@ export function StatsView({
   anchorDate,
   period,
   events,
+  previousPeriodEvents,
   types,
   monthStatsUrl,
   yearStatsUrl,
@@ -80,6 +82,58 @@ export function StatsView({
     period === "year" && monthlyData.length
       ? monthlyData.reduce((max, m) => (m.count > max.count ? m : max), monthlyData[0])
       : null;
+
+  // Coaching passif : ne compare qu'en vue mois (previousPeriodEvents n'est
+  // peuplé que dans ce cas, cf. app/dashboard/page.tsx).
+  const previousByType = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const ev of previousPeriodEvents) {
+      const t = ev.eventTypeId ? typeById.get(ev.eventTypeId) : undefined;
+      const key = t?.name ?? "Sans type";
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return map;
+  }, [previousPeriodEvents, typeById]);
+
+  const insights = useMemo(() => {
+    if (period !== "month") return [];
+    const list: string[] = [];
+
+    const prevTotal = previousPeriodEvents.length;
+    if (prevTotal > 0 && events.length > 0) {
+      const deltaPct = Math.round(((events.length - prevTotal) / prevTotal) * 100);
+      if (deltaPct !== 0) {
+        list.push(
+          `${Math.abs(deltaPct)}% ${deltaPct > 0 ? "de plus" : "de moins"} d'activités que le mois dernier.`
+        );
+      }
+    }
+
+    let biggestMoverText: string | null = null;
+    let biggestAbsDelta = 0;
+    for (const t of byType) {
+      const prevCount = previousByType.get(t.name) ?? 0;
+      if (prevCount === 0) continue; // évite les % infinis sur un type tout nouveau
+      const deltaPct = Math.round(((t.count - prevCount) / prevCount) * 100);
+      if (Math.abs(deltaPct) > Math.abs(biggestAbsDelta) && Math.abs(deltaPct) >= 10) {
+        biggestAbsDelta = deltaPct;
+        biggestMoverText = `${t.name} : ${deltaPct > 0 ? "+" : ""}${deltaPct}% par rapport au mois dernier.`;
+      }
+    }
+    if (biggestMoverText) list.push(biggestMoverText);
+
+    const sortedDays = [...new Set(events.map((e) => e.startAt.slice(0, 10)))].sort();
+    if (sortedDays.length >= 2) {
+      let maxGap = 0;
+      for (let i = 1; i < sortedDays.length; i++) {
+        const gap = differenceInCalendarDays(new Date(sortedDays[i]), new Date(sortedDays[i - 1]));
+        if (gap > maxGap) maxGap = gap;
+      }
+      if (maxGap >= 3) list.push(`Jusqu'à ${maxGap} jours d'affilée sans activité ce mois-ci.`);
+    }
+
+    return list;
+  }, [events, previousPeriodEvents, previousByType, byType, period]);
 
   function goPrev() {
     if (period === "month") {
@@ -146,6 +200,19 @@ export function StatsView({
             )}
             <StatBox value={topType?.name ?? "—"} label="type favori" />
           </div>
+
+          {insights.length > 0 && (
+            <div className="bg-tint border border-accent rounded-card p-[14px] flex flex-col gap-[8px]">
+              <div className="flex items-center gap-[6px] font-mono text-[10px] tracking-[.12em] uppercase text-accent">
+                <Sparkles size={12} /> Ce que ça raconte
+              </div>
+              {insights.map((line) => (
+                <p key={line} className="text-[13px] text-ink leading-snug">
+                  {line}
+                </p>
+              ))}
+            </div>
+          )}
 
           <div className="bg-surface border border-line rounded-card p-[16px]">
             <div className="font-mono text-[10px] tracking-[.12em] uppercase text-muted mb-3">

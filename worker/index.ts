@@ -8,6 +8,7 @@ type PushPayload = {
   body?: string;
   tag?: string;
   eventId?: string;
+  type?: "weather" | "reminder";
 };
 
 // Injecté dans le service worker généré par @ducanh2912/next-pwa via
@@ -45,7 +46,7 @@ async function handlePush(event: PushEvent) {
       // que de disparaître seule après quelques secondes.
       requireInteraction: true,
       vibrate: [200, 100, 200],
-      data: { eventId: data.eventId },
+      data: { eventId: data.eventId, type: data.type },
     });
   } catch {
     await self.registration.showNotification(title, { body: data.body });
@@ -54,8 +55,12 @@ async function handlePush(event: PushEvent) {
 
 self.addEventListener("notificationclick", (event: NotificationEvent) => {
   event.notification.close();
-  const eventId = (event.notification.data as { eventId?: string } | undefined)?.eventId;
-  const targetUrl = eventId ? `/dashboard?event=${eventId}` : "/dashboard";
+  const data = event.notification.data as { eventId?: string; type?: string } | undefined;
+  const targetUrl = !data?.eventId
+    ? "/dashboard"
+    : data.type === "weather"
+      ? `/dashboard?weatherAlert=${data.eventId}`
+      : `/dashboard?event=${data.eventId}`;
 
   event.waitUntil(
     self.clients

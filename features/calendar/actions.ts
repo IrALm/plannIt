@@ -10,15 +10,22 @@ function mapRow(row: {
   name: string;
   color: EventColor;
   is_default: boolean;
+  weather_sensitive: boolean;
 }): EventType {
-  return { id: row.id, name: row.name, color: row.color, isDefault: row.is_default };
+  return {
+    id: row.id,
+    name: row.name,
+    color: row.color,
+    isDefault: row.is_default,
+    weatherSensitive: row.weather_sensitive,
+  };
 }
 
 export async function listEventTypes(): Promise<EventType[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("event_types")
-    .select("id, name, color, is_default")
+    .select("id, name, color, is_default, weather_sensitive")
     .order("created_at", { ascending: true });
 
   if (error) throw error;
@@ -60,7 +67,8 @@ export async function createEventType(name: string, color: EventColor) {
  * nouveau type dans un <TypeSelect> juste après sa création. */
 export async function createEventTypeAndReturn(
   name: string,
-  color: EventColor
+  color: EventColor,
+  weatherSensitive = false
 ): Promise<EventType> {
   const supabase = await createClient();
   const {
@@ -70,8 +78,8 @@ export async function createEventTypeAndReturn(
 
   const { data, error } = await supabase
     .from("event_types")
-    .insert({ user_id: user.id, name, color, is_default: false })
-    .select("id, name, color, is_default")
+    .insert({ user_id: user.id, name, color, is_default: false, weather_sensitive: weatherSensitive })
+    .select("id, name, color, is_default, weather_sensitive")
     .single();
 
   if (error) throw error;
@@ -89,10 +97,17 @@ export async function deleteEventType(id: string) {
 
 export async function updateEventType(
   id: string,
-  updates: { name?: string; color?: EventColor }
+  updates: { name?: string; color?: EventColor; weatherSensitive?: boolean }
 ) {
   const supabase = await createClient();
-  const { error } = await supabase.from("event_types").update(updates).eq("id", id);
+  const { error } = await supabase
+    .from("event_types")
+    .update({
+      ...(updates.name !== undefined ? { name: updates.name } : {}),
+      ...(updates.color !== undefined ? { color: updates.color } : {}),
+      ...(updates.weatherSensitive !== undefined ? { weather_sensitive: updates.weatherSensitive } : {}),
+    })
+    .eq("id", id);
   if (error) throw error;
   revalidatePath("/dashboard");
   revalidatePath("/settings");

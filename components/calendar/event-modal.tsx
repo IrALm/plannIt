@@ -72,8 +72,12 @@ export function EventModal({ types, event, defaultDate, defaultReminders }: Even
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalOpen, modalMode, event]);
 
-  async function handleCreateType(name: string, color: Parameters<typeof createEventTypeAndReturn>[1]) {
-    const created = await createEventTypeAndReturn(name, color);
+  async function handleCreateType(
+    name: string,
+    color: Parameters<typeof createEventTypeAndReturn>[1],
+    weatherSensitive: boolean
+  ) {
+    const created = await createEventTypeAndReturn(name, color, weatherSensitive);
     setAvailableTypes((prev) => [...prev, created]);
     return created;
   }

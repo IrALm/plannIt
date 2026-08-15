@@ -14,20 +14,21 @@ Détail complet de cette feuille de route : mémoire projet `project_roadmap.md`
 
 ## Versions & fonctionnalités
 
-**Aujourd'hui (MVP, en production)**
+**Aujourd'hui (en production)**
 - Auth Google OAuth unique (login + accès Google Calendar dans le même écran de consentement)
 - Vue semaine, vue mois, vue Stats (répartition par type, tendances, graphiques) — navigation illimitée dans le temps
 - Événements avec types/couleurs personnalisables, rappels entièrement paramétrables (minute/heure/jour, aucune limite)
 - Push notifications serveur (fonctionnent app fermée, écran verrouillé) + notification automatique au démarrage de chaque activité
-- Sync bidirectionnelle Google Calendar
+- **Sync Google Calendar bidirectionnelle**, avec auto-réparation (un événement PlannIt supprimé côté Google est recréé à la prochaine modif) et import des événements créés directement dans Google, y compris toute la journée
+- **Cascade de retard intelligente** : "je suis en retard" décale automatiquement le reste des activités du jour, plutôt qu'un recalage manuel un par un
+- **Coaching passif** : la vue Stats compare au mois précédent et signale les tendances (type en hausse/baisse, plus longue période sans activité) — pas juste des graphiques à lire
+- **Alertes météo** : types marqués "sensible à la météo" (ex. Sport) déclenchent une notification si pluie prévue dans les prochaines heures (Open-Meteo, ville renseignée une fois dans Réglages)
 - Emails : bienvenue + résumé hebdomadaire automatique (si activité prévue cette semaine-là)
 - PWA installable, thème clair/sombre, avatar de profil
 
 **À venir**
-- v-suivante — Cascade de retard intelligente
-- v-suivante — Signal météo (Open-Meteo) puis RATP/PRIM (Île-de-France)
-- v-suivante — Stats en coaching passif (insights actifs, pas juste des graphiques)
-- Choix définitif d'une niche cible, pour orienter ces trois axes vers un public précis plutôt que généraliste
+- Perturbations de transport en Île-de-France (API RATP/PRIM) — bloqué en attente d'une clé API à créer par l'utilisateur sur le portail PRIM (Île-de-France Mobilités)
+- Choix définitif d'une niche cible, pour orienter ces axes vers un public précis plutôt que généraliste
 
 ## Stack technique
 
@@ -127,7 +128,7 @@ Un seul bouton "Continuer avec Google" (`features/auth/actions.ts` → `signInWi
 
 ### Schéma Supabase & Edge Functions
 
-15 migrations (`supabase/migrations/`) appliquées, 6 Edge Functions déployées sur le projet `foukyqukmutuciunctbi` : `google-calendar-oauth` (déconnexion uniquement), `google-calendar` (sync CRUD PlannIt → Google), `sync-google-calendar` (sync retour Google → PlannIt, cron toutes les 10 min), `send-email` (bienvenue), `send-push-reminders` (cron chaque minute), `send-weekly-recap` (cron toutes les 15 min, n'agit que lundi 00h-01h Paris).
+16 migrations (`supabase/migrations/`) appliquées, 7 Edge Functions déployées sur le projet `foukyqukmutuciunctbi` : `google-calendar-oauth` (déconnexion uniquement), `google-calendar` (sync CRUD PlannIt → Google), `sync-google-calendar` (sync retour Google → PlannIt, cron toutes les 10 min), `send-email` (bienvenue), `send-push-reminders` (cron chaque minute), `send-weekly-recap` (cron toutes les 15 min, n'agit que lundi 00h-01h Paris), `send-weather-alerts` (cron toutes les 30 min).
 
 ### Sync Google Calendar — dans les deux sens
 
@@ -159,6 +160,18 @@ Bienvenue (1er login) et résumé hebdomadaire (lundi, si ≥1 activité cette s
 ### Push notifications
 
 Vraies push notifications serveur (fonctionnent app fermée, écran verrouillé, son/vibration natifs — soumis aux réglages système de l'appareil). Toggle dans Réglages → `pushManager.subscribe()` → stocké dans `push_subscriptions`. Rappels entièrement paramétrables (`components/ui/reminder-picker.tsx`, minute/heure/jour, aucun preset figé) + notification automatique et implicite au démarrage de chaque activité (offset `0`, en plus des rappels configurés). Déclenché par `pg_cron` → Edge Function `send-push-reminders` chaque minute.
+
+### Cascade de retard intelligente
+
+Bouton horloge sur une activité du jour (`components/calendar/delay-button.tsx`) → choix rapide 5/10/15/30 min → `applyDelayCascade` (`features/events/actions.ts`) décale cet événement et tous ceux qui suivent **le même jour** (heure de Paris) du même délai, réinitialise leurs rappels et resynchronise chacun vers Google. N'affecte jamais les jours suivants.
+
+### Coaching passif (Stats)
+
+En vue mois, `app/dashboard/page.tsx` fetch aussi le mois précédent ; `components/calendar/stats-view.tsx` compare et affiche jusqu'à 3 insights : évolution du total, type dont la fréquence a le plus varié (±10% minimum pour être affiché), plus longue période sans activité ce mois-ci. Rien en vue année (comparaison non pertinente).
+
+### Alertes météo
+
+Deux réglages à faire une fois : marquer un type "sensible à la météo" (case à cocher à la création d'un type, `components/calendar/type-select.tsx`) et renseigner sa ville dans Réglages (géocodée via Open-Meteo, gratuit, sans clé — `updateWeatherCity` dans `app/settings/actions.ts`). Toutes les 30 min, `send-weather-alerts` vérifie les événements des 4 prochaines heures dont le type est sensible à la météo, interroge la prévision horaire Open-Meteo à la position enregistrée, et pousse une notification si risque de pluie ≥50% ou précipitations ≥0.5 mm. Chaque événement n'est vérifié qu'une fois (`events.weather_alert_sent`). Ne gère qu'une seule ville par compte (pas de lieu par événement) — limite assumée pour un planning perso.
 
 ### PWA
 

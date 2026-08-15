@@ -1,9 +1,42 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { parse, addDays } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 import { createClient } from "@/lib/supabase/server";
 import { syncEventToGoogle } from "@/lib/google/edge-functions";
+import { APP_TIME_ZONE, toAppTimeZoneInstant } from "@/lib/utils/date";
 import type { CalendarEvent, EventActionState, EventInput } from "./types";
+
+/** Un seul événement, par id — utilisé par la feuille mascotte d'alerte
+ * météo (l'événement concerné n'est pas forcément dans la plage déjà
+ * chargée par la vue courante, ex. Stats sur un autre mois). */
+export async function getEventById(id: string): Promise<CalendarEvent | null> {
+  const supabase = await createClient();
+
+  const { data: e } = await supabase
+    .from("events")
+    .select("id, title, description, start_at, end_at, reminders, event_type_id")
+    .eq("id", id)
+    .single();
+  if (!e) return null;
+
+  const type = e.event_type_id
+    ? (await supabase.from("event_types").select("name, color").eq("id", e.event_type_id).single()).data
+    : null;
+
+  return {
+    id: e.id,
+    title: e.title,
+    description: e.description,
+    startAt: e.start_at,
+    endAt: e.end_at,
+    reminders: e.reminders,
+    eventTypeId: e.event_type_id,
+    color: type?.color ?? "blue",
+    typeName: type?.name ?? null,
+  };
+}
 
 export async function getEventsByRange(
   startISO: string,
@@ -139,6 +172,74 @@ export async function updateEvent(
 
   revalidatePath("/dashboard");
   return { error: null };
+}
+
+export type DelayCascadeResult = { error: string | null; shiftedCount?: number };
+
+/**
+ * "Je suis en retard" — décale cet événement et tous ceux qui suivent le
+ * même jour (heure de Paris) du même délai, plutôt que de laisser
+ * l'utilisateur tout recaler à la main un par un. Aucun calendrier
+ * mainstream ne le fait (cf. mémoire produit "Roadmap Produit").
+ */
+export async function applyDelayCascade(
+  eventId: string,
+  delayMinutes: number
+): Promise<DelayCascadeResult> {
+  if (!Number.isFinite(delayMinutes) || delayMinutes <= 0) {
+    return { error: "Choisis un retard positif." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Session expirée, reconnecte-toi." };
+
+  const { data: source } = await supabase
+    .from("events")
+    .select("start_at")
+    .eq("id", eventId)
+    .single();
+  if (!source) return { error: "Activité introuvable." };
+
+  // Borne de fin = minuit (Paris) le lendemain du jour de l'événement — on ne
+  // décale que ce qui reste à venir CE jour-là, pas les jours suivants.
+  const dayYMD = formatInTimeZone(new Date(source.start_at), APP_TIME_ZONE, "yyyy-MM-dd");
+  const dayEndLocal = addDays(parse(dayYMD, "yyyy-MM-dd", new Date()), 1);
+  const dayEndUTC = toAppTimeZoneInstant(dayEndLocal).toISOString();
+
+  const { data: toShift, error: fetchError } = await supabase
+    .from("events")
+    .select("id, title, description, start_at, end_at")
+    .eq("user_id", user.id)
+    .gte("start_at", source.start_at)
+    .lt("start_at", dayEndUTC)
+    .order("start_at", { ascending: true });
+
+  if (fetchError || !toShift) return { error: "Impossible de récupérer les activités du jour." };
+
+  const deltaMs = delayMinutes * 60_000;
+  for (const ev of toShift) {
+    const newStart = new Date(new Date(ev.start_at).getTime() + deltaMs).toISOString();
+    const newEnd = new Date(new Date(ev.end_at).getTime() + deltaMs).toISOString();
+
+    await supabase
+      .from("events")
+      .update({ start_at: newStart, end_at: newEnd, reminders_sent: [] })
+      .eq("id", ev.id);
+
+    await syncEventToGoogle("update", {
+      id: ev.id,
+      title: ev.title,
+      description: ev.description,
+      startAt: newStart,
+      endAt: newEnd,
+    });
+  }
+
+  revalidatePath("/dashboard");
+  return { error: null, shiftedCount: toShift.length };
 }
 
 export async function deleteEvent(id: string): Promise<EventActionState> {

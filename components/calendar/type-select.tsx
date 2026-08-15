@@ -9,7 +9,7 @@ type TypeSelectProps = {
   types: EventType[];
   value: string | null;
   onChange: (id: string) => void;
-  onCreateType: (name: string, color: EventColor) => Promise<EventType>;
+  onCreateType: (name: string, color: EventColor, weatherSensitive: boolean) => Promise<EventType>;
 };
 
 export function TypeSelect({ types, value, onChange, onCreateType }: TypeSelectProps) {
@@ -17,15 +17,17 @@ export function TypeSelect({ types, value, onChange, onCreateType }: TypeSelectP
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState<EventColor>("blue");
+  const [weatherSensitive, setWeatherSensitive] = useState(false);
 
   const selected = types.find((t) => t.id === value);
 
   async function handleCreate() {
     const trimmed = newName.trim();
     if (!trimmed) return;
-    const created = await onCreateType(trimmed, newColor);
+    const created = await onCreateType(trimmed, newColor, weatherSensitive);
     onChange(created.id);
     setNewName("");
+    setWeatherSensitive(false);
     setCreating(false);
     setOpen(false);
   }
@@ -104,6 +106,15 @@ export function TypeSelect({ types, value, onChange, onCreateType }: TypeSelectP
                   />
                 ))}
               </div>
+              <label className="flex items-center gap-[7px] text-[12.5px] text-ink-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={weatherSensitive}
+                  onChange={(e) => setWeatherSensitive(e.target.checked)}
+                  className="accent-accent"
+                />
+                Sensible à la météo (alerte si pluie prévue)
+              </label>
               <button
                 type="button"
                 onClick={handleCreate}

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { parse } from "date-fns";
+import { parse, subMonths } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardView } from "@/components/calendar/dashboard-view";
 import {
@@ -12,6 +12,7 @@ import {
 } from "@/lib/utils/date";
 import { getEventsByRange } from "@/features/events/actions";
 import { listEventTypes } from "@/features/calendar/actions";
+import { getHourlyForecast } from "@/lib/weather/forecast";
 
 type DashboardSearchParams = Promise<{
   view?: string;
@@ -39,7 +40,11 @@ export default async function DashboardPage({
       .select("full_name, avatar_url, profile_completed")
       .eq("id", user.id)
       .single(),
-    supabase.from("user_preferences").select("default_reminders").eq("user_id", user.id).single(),
+    supabase
+      .from("user_preferences")
+      .select("default_reminders, weather_lat, weather_lon")
+      .eq("user_id", user.id)
+      .single(),
   ]);
 
   if (!profile?.profile_completed) redirect("/complete-profile");
@@ -84,9 +89,23 @@ export default async function DashboardPage({
   const startUTC = toAppTimeZoneInstant(start);
   const endUTC = toAppTimeZoneInstant(end);
 
-  const [events, types] = await Promise.all([
+  // Coaching passif (vue Stats, mois) : compare au mois précédent — n'a de
+  // sens qu'en vue mois, pas en vue année.
+  const needsPreviousMonth = view === "stats" && statsPeriod === "month";
+  const previousMonthRange = needsPreviousMonth ? getMonthRange(subMonths(anchorDate, 1)) : null;
+
+  const hasWeatherLocation = prefs?.weather_lat != null && prefs?.weather_lon != null;
+
+  const [events, types, previousPeriodEvents, hourlyForecast] = await Promise.all([
     getEventsByRange(startUTC.toISOString(), endUTC.toISOString()),
     listEventTypes(),
+    previousMonthRange
+      ? getEventsByRange(
+          toAppTimeZoneInstant(previousMonthRange.start).toISOString(),
+          toAppTimeZoneInstant(previousMonthRange.end).toISOString()
+        )
+      : Promise.resolve([]),
+    hasWeatherLocation ? getHourlyForecast(prefs!.weather_lat!, prefs!.weather_lon!) : Promise.resolve([]),
   ]);
 
   const displayName = profile?.full_name || user.email?.split("@")[0] || "toi";
@@ -101,6 +120,8 @@ export default async function DashboardPage({
       view={view}
       anchorDate={anchorYMD}
       statsPeriod={statsPeriod}
+      previousPeriodEvents={previousPeriodEvents}
+      hourlyForecast={hourlyForecast}
     />
   );
 }

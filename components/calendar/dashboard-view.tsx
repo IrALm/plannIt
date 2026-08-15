@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
-import { isSameDay, format, parse } from "date-fns";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { isSameDay, isToday as isTodayFn, format, parse } from "date-fns";
 import { Settings } from "lucide-react";
 import { Mascot } from "@/components/icons/mascot";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -12,13 +12,17 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { WeekStrip } from "./week-strip";
 import { Timeline } from "./timeline";
 import { MonthView } from "./month-view";
+import { WeatherStrip } from "./weather-strip";
+import { WeatherAlertSheet } from "./weather-alert-sheet";
 import { Fab } from "./fab";
 import { EventModal } from "./event-modal";
 import { useCalendarStore } from "@/stores/calendar.store";
 import { useUIStore } from "@/stores/ui.store";
 import { formatHeaderDate } from "@/lib/utils/date";
+import { getEventById } from "@/features/events/actions";
 import type { CalendarEvent } from "@/features/events/types";
 import type { EventType } from "@/features/calendar/types";
+import type { HourlyForecast } from "@/lib/weather/forecast";
 
 type DashboardViewProps = {
   displayName: string;
@@ -29,6 +33,8 @@ type DashboardViewProps = {
   view: "week" | "month" | "stats";
   anchorDate: string;
   statsPeriod: "month" | "year";
+  previousPeriodEvents: CalendarEvent[];
+  hourlyForecast: HourlyForecast[];
 };
 
 // recharts (~120kB) n'est chargée que si l'utilisateur ouvre l'onglet Stats —
@@ -61,8 +67,12 @@ export function DashboardView({
   view,
   anchorDate,
   statsPeriod,
+  previousPeriodEvents,
+  hourlyForecast,
 }: DashboardViewProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   // anchorDate est un Y-M-D pur (jamais un instant sérialisé, cf.
   // lib/utils/date.ts) : reconstruit ici via le fuseau réel du navigateur,
   // pas via new Date("yyyy-MM-dd") qui serait interprété en UTC par le spec
@@ -88,7 +98,33 @@ export function DashboardView({
     [events, selectedDate]
   );
 
-  const editingEvent = events.find((e) => e.id === editingEventId) ?? null;
+  // Tap sur une notif de rappel classique (worker/index.ts → ?event=<id>) :
+  // l'événement visé n'est pas forcément dans la plage déjà chargée par la
+  // vue courante (ex. rappel pour un événement la semaine prochaine alors
+  // qu'on est sur "cette semaine") — fetch dédié plutôt qu'une recherche
+  // dans `events`, avec repli sur ce fetch pour l'édition.
+  const [detachedEvent, setDetachedEvent] = useState<CalendarEvent | null>(null);
+
+  useEffect(() => {
+    const targetId = searchParams.get("event");
+    if (!targetId) return;
+
+    getEventById(targetId).then((ev) => {
+      if (ev) {
+        setDetachedEvent(ev);
+        openEditModal(ev.id);
+      }
+      const next = new URLSearchParams(searchParams.toString());
+      next.delete("event");
+      const qs = next.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  const editingEvent =
+    events.find((e) => e.id === editingEventId) ??
+    (detachedEvent?.id === editingEventId ? detachedEvent : null);
 
   return (
     <div className="min-h-screen bg-bg text-ink flex flex-col animate-plfade max-w-md mx-auto md:border-x md:border-line">
@@ -116,6 +152,8 @@ export function DashboardView({
         </Link>
       </div>
 
+      <WeatherStrip hours={hourlyForecast} />
+
       <div className="px-[18px] pb-1">
         <SegmentedControl
           options={[
@@ -139,7 +177,7 @@ export function DashboardView({
       {view === "week" && (
         <>
           <WeekStrip />
-          <Timeline events={dayEvents} onEventClick={openEditModal} />
+          <Timeline events={dayEvents} onEventClick={openEditModal} isToday={isTodayFn(selectedDate)} />
         </>
       )}
       {view === "month" && (
@@ -150,6 +188,7 @@ export function DashboardView({
           anchorDate={anchorDateObj}
           period={statsPeriod}
           events={events}
+          previousPeriodEvents={previousPeriodEvents}
           types={types}
           monthStatsUrl={monthStatsUrl}
           yearStatsUrl={yearStatsUrl}
@@ -166,6 +205,8 @@ export function DashboardView({
           defaultReminders={defaultReminders}
         />
       )}
+
+      <WeatherAlertSheet />
     </div>
   );
 }

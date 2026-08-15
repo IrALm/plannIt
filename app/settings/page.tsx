@@ -13,6 +13,7 @@ import { InstallCard } from "@/components/pwa/install-card";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PushNotificationsToggle } from "@/components/settings/push-notifications-toggle";
 import { WeeklyRecapToggle } from "@/components/settings/weekly-recap-toggle";
+import { WeatherCityInput } from "@/components/settings/weather-city-input";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -30,7 +31,9 @@ export default async function SettingsPage() {
       .single(),
     supabase
       .from("user_preferences")
-      .select("google_calendar_connected, google_email, default_reminders, weekly_recap_enabled")
+      .select(
+        "google_calendar_connected, google_email, default_reminders, weekly_recap_enabled, weather_city"
+      )
       .eq("user_id", user.id)
       .single(),
   ]);
@@ -109,6 +112,8 @@ export default async function SettingsPage() {
       </div>
 
       <RemindersSection defaultReminders={prefs?.default_reminders ?? [30]} />
+
+      <WeatherCityInput initialCity={prefs?.weather_city ?? null} />
 
       <form action={signOut} className="mt-auto">
         <Button type="submit" variant="danger">

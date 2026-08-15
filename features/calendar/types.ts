@@ -5,6 +5,7 @@ export type EventType = {
   name: string;
   color: EventColor;
   isDefault: boolean;
+  weatherSensitive: boolean;
 };
 
 export const EVENT_COLOR_HEX: Record<EventColor, string> = {

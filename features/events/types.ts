@@ -1,5 +1,7 @@
 import type { EventColor } from "@/lib/supabase/types";
 
+export type EventLocation = { name: string; lat: number; lon: number };
+
 export type CalendarEvent = {
   id: string;
   title: string;
@@ -10,6 +12,7 @@ export type CalendarEvent = {
   eventTypeId: string | null;
   color: EventColor;
   typeName: string | null;
+  location: EventLocation | null;
 };
 
 export type EventInput = {
@@ -19,6 +22,7 @@ export type EventInput = {
   startAt: string;
   endAt: string;
   reminders: number[];
+  location?: EventLocation | null;
 };
 
 export type EventActionState = { error: string | null };

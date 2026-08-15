@@ -9,7 +9,12 @@ type TypeSelectProps = {
   types: EventType[];
   value: string | null;
   onChange: (id: string) => void;
-  onCreateType: (name: string, color: EventColor, weatherSensitive: boolean) => Promise<EventType>;
+  onCreateType: (
+    name: string,
+    color: EventColor,
+    weatherSensitive: boolean,
+    locationRequired: boolean
+  ) => Promise<EventType>;
 };
 
 export function TypeSelect({ types, value, onChange, onCreateType }: TypeSelectProps) {
@@ -18,16 +23,18 @@ export function TypeSelect({ types, value, onChange, onCreateType }: TypeSelectP
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState<EventColor>("blue");
   const [weatherSensitive, setWeatherSensitive] = useState(false);
+  const [locationRequired, setLocationRequired] = useState(false);
 
   const selected = types.find((t) => t.id === value);
 
   async function handleCreate() {
     const trimmed = newName.trim();
     if (!trimmed) return;
-    const created = await onCreateType(trimmed, newColor, weatherSensitive);
+    const created = await onCreateType(trimmed, newColor, weatherSensitive, locationRequired);
     onChange(created.id);
     setNewName("");
     setWeatherSensitive(false);
+    setLocationRequired(false);
     setCreating(false);
     setOpen(false);
   }
@@ -114,6 +121,15 @@ export function TypeSelect({ types, value, onChange, onCreateType }: TypeSelectP
                   className="accent-accent"
                 />
                 Sensible à la météo (alerte si pluie prévue)
+              </label>
+              <label className="flex items-center gap-[7px] text-[12.5px] text-ink-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={locationRequired}
+                  onChange={(e) => setLocationRequired(e.target.checked)}
+                  className="accent-accent"
+                />
+                Nécessite un lieu (calcul du trajet)
               </label>
               <button
                 type="button"

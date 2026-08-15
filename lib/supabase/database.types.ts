@@ -20,6 +20,7 @@ export type Database = {
           created_at: string
           id: string
           is_default: boolean
+          location_required: boolean
           name: string
           updated_at: string
           user_id: string
@@ -30,6 +31,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_default?: boolean
+          location_required?: boolean
           name: string
           updated_at?: string
           user_id: string
@@ -40,6 +42,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_default?: boolean
+          location_required?: boolean
           name?: string
           updated_at?: string
           user_id?: string
@@ -55,6 +58,9 @@ export type Database = {
           event_type_id: string | null
           google_event_id: string | null
           id: string
+          location_lat: number | null
+          location_lon: number | null
+          location_name: string | null
           reminders: number[]
           reminders_sent: number[]
           start_at: string
@@ -71,6 +77,9 @@ export type Database = {
           event_type_id?: string | null
           google_event_id?: string | null
           id?: string
+          location_lat?: number | null
+          location_lon?: number | null
+          location_name?: string | null
           reminders?: number[]
           reminders_sent?: number[]
           start_at: string
@@ -87,6 +96,9 @@ export type Database = {
           event_type_id?: string | null
           google_event_id?: string | null
           id?: string
+          location_lat?: number | null
+          location_lon?: number | null
+          location_name?: string | null
           reminders?: number[]
           reminders_sent?: number[]
           start_at?: string
@@ -266,6 +278,8 @@ export type Database = {
           default_reminders: number[]
           google_calendar_connected: boolean
           google_email: string | null
+          last_cold_alert_date: string | null
+          last_heat_alert_date: string | null
           onboarding_completed: boolean
           onboarding_step: number
           theme: Database["public"]["Enums"]["theme_preference"]
@@ -280,6 +294,8 @@ export type Database = {
           default_reminders?: number[]
           google_calendar_connected?: boolean
           google_email?: string | null
+          last_cold_alert_date?: string | null
+          last_heat_alert_date?: string | null
           onboarding_completed?: boolean
           onboarding_step?: number
           theme?: Database["public"]["Enums"]["theme_preference"]
@@ -294,6 +310,8 @@ export type Database = {
           default_reminders?: number[]
           google_calendar_connected?: boolean
           google_email?: string | null
+          last_cold_alert_date?: string | null
+          last_heat_alert_date?: string | null
           onboarding_completed?: boolean
           onboarding_step?: number
           theme?: Database["public"]["Enums"]["theme_preference"]

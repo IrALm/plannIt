@@ -10,6 +10,12 @@ const LOOKAHEAD_MS = 4 * 60 * 60 * 1000;
 const RAIN_PROBABILITY_THRESHOLD = 50; // %
 const RAIN_AMOUNT_THRESHOLD_MM = 0.5;
 
+// Alertes température ambiante, indépendantes des événements — fenêtre plus
+// large (la température varie plus lentement que la pluie).
+const TEMP_LOOKAHEAD_HOURS = 6;
+const HEAT_THRESHOLD_C = 30;
+const COLD_THRESHOLD_C = 3;
+
 type AdminClient = ReturnType<typeof createAdminClient>;
 
 function json(body: unknown, status = 200) {
@@ -43,16 +49,37 @@ async function getRainRiskAt(lat: number, lon: number, whenISO: string) {
   };
 }
 
-async function notifyUser(admin: AdminClient, userId: string, title: string, body: string, eventId: string) {
+/** Température max/min prévue dans les prochaines `hours` heures. */
+async function getTempRangeAhead(lat: number, lon: number, hours: number) {
+  const params = new URLSearchParams({
+    latitude: String(lat),
+    longitude: String(lon),
+    hourly: "temperature_2m",
+    timezone: APP_TIME_ZONE,
+    forecast_days: "2",
+  });
+  const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`);
+  if (!res.ok) throw new Error(`Open-Meteo ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+
+  const times: string[] = data.hourly?.time ?? [];
+  const temps: number[] = data.hourly?.temperature_2m ?? [];
+  const currentHour = formatInTimeZone(new Date(), APP_TIME_ZONE, "yyyy-MM-dd'T'HH':00'");
+  const startIdx = times.indexOf(currentHour);
+  if (startIdx === -1) return null;
+
+  const window = temps.slice(startIdx, startIdx + hours);
+  if (!window.length) return null;
+  return { max: Math.max(...window), min: Math.min(...window) };
+}
+
+async function sendPush(admin: AdminClient, userId: string, title: string, body: string, extra: Record<string, unknown>) {
   const { data: subs } = await admin
     .from("push_subscriptions")
     .select("id, endpoint, p256dh, auth_key")
     .eq("user_id", userId);
 
-  // type:"weather" + eventId : le service worker (worker/index.ts) route le
-  // clic vers /dashboard?weatherAlert=<id>, qui ouvre la feuille mascotte de
-  // confirmation plutôt que le modal d'édition classique.
-  const payload = JSON.stringify({ title, body, tag: `weather-${eventId}`, type: "weather", eventId });
+  const payload = JSON.stringify({ title, body, ...extra });
   const staleIds: string[] = [];
 
   for (const sub of subs ?? []) {
@@ -72,11 +99,11 @@ async function notifyUser(admin: AdminClient, userId: string, title: string, bod
 
 /**
  * Toutes les 30 min (migration 00016) : pour chaque utilisateur avec une
- * ville enregistrée, cherche les événements des prochaines heures dont le
- * type est marqué "sensible à la météo" et vérifie la prévision de pluie
- * via Open-Meteo (API publique, sans clé). Best-effort, un événement n'est
- * vérifié qu'une fois (weather_alert_sent) — un webhook temps réel n'a pas
- * de sens ici, la météo change lentement.
+ * ville enregistrée, (1) cherche les événements des prochaines heures dont
+ * le type est marqué "sensible à la météo" et vérifie le risque de pluie,
+ * (2) vérifie la température ambiante des prochaines heures (indépendamment
+ * de tout événement) et alerte au plus une fois par jour en cas de forte
+ * chaleur/froid vif. Open-Meteo (API publique, sans clé). Best-effort.
  */
 Deno.serve(async (req) => {
   const cronSecret = Deno.env.get("CRON_SECRET");
@@ -87,18 +114,21 @@ Deno.serve(async (req) => {
 
   const admin = createAdminClient();
   const now = new Date();
+  const todayYMD = formatInTimeZone(now, APP_TIME_ZONE, "yyyy-MM-dd");
 
   try {
     const { data: prefs } = await admin
       .from("user_preferences")
-      .select("user_id, weather_lat, weather_lon")
+      .select("user_id, weather_lat, weather_lon, last_heat_alert_date, last_cold_alert_date")
       .not("weather_lat", "is", null)
       .not("weather_lon", "is", null);
 
     let checked = 0;
     let alerted = 0;
+    let tempAlerted = 0;
 
     for (const pref of prefs ?? []) {
+      // --- Pluie avant un événement sensible à la météo ---
       const { data: events } = await admin
         .from("events")
         .select("id, user_id, title, start_at, event_type_id")
@@ -107,43 +137,70 @@ Deno.serve(async (req) => {
         .gt("start_at", now.toISOString())
         .lte("start_at", new Date(now.getTime() + LOOKAHEAD_MS).toISOString());
 
-      if (!events?.length) continue;
+      if (events?.length) {
+        const eventTypeIds = [...new Set(events.map((e) => e.event_type_id).filter(Boolean))];
+        const { data: types } = eventTypeIds.length
+          ? await admin.from("event_types").select("id, weather_sensitive").in("id", eventTypeIds)
+          : { data: [] };
+        const sensitiveTypeIds = new Set((types ?? []).filter((t) => t.weather_sensitive).map((t) => t.id));
 
-      const eventTypeIds = [...new Set(events.map((e) => e.event_type_id).filter(Boolean))];
-      if (!eventTypeIds.length) continue;
+        for (const ev of events) {
+          if (!ev.event_type_id || !sensitiveTypeIds.has(ev.event_type_id)) continue;
+          checked++;
 
-      const { data: types } = await admin
-        .from("event_types")
-        .select("id, weather_sensitive")
-        .in("id", eventTypeIds);
-      const sensitiveTypeIds = new Set((types ?? []).filter((t) => t.weather_sensitive).map((t) => t.id));
+          try {
+            const risk = await getRainRiskAt(pref.weather_lat!, pref.weather_lon!, ev.start_at);
+            if (risk && (risk.probability >= RAIN_PROBABILITY_THRESHOLD || risk.amount >= RAIN_AMOUNT_THRESHOLD_MM)) {
+              const time = formatInTimeZone(new Date(ev.start_at), APP_TIME_ZONE, "HH:mm");
+              await sendPush(
+                admin,
+                pref.user_id,
+                `Pluie prévue pour "${ev.title}"`,
+                `${risk.probability}% de risque de pluie à ${time}. Pense à t'organiser.`,
+                { tag: `weather-${ev.id}`, type: "weather", eventId: ev.id }
+              );
+              alerted++;
+            }
+          } catch (err) {
+            await captureException(err, { function: "send-weather-alerts", event_id: ev.id });
+          }
 
-      for (const ev of events) {
-        if (!ev.event_type_id || !sensitiveTypeIds.has(ev.event_type_id)) continue;
-        checked++;
+          await admin.from("events").update({ weather_alert_sent: true }).eq("id", ev.id);
+        }
+      }
 
-        try {
-          const risk = await getRainRiskAt(pref.weather_lat!, pref.weather_lon!, ev.start_at);
-          if (risk && (risk.probability >= RAIN_PROBABILITY_THRESHOLD || risk.amount >= RAIN_AMOUNT_THRESHOLD_MM)) {
-            const time = formatInTimeZone(new Date(ev.start_at), APP_TIME_ZONE, "HH:mm");
-            await notifyUser(
+      // --- Température ambiante, indépendante des événements ---
+      try {
+        const range = await getTempRangeAhead(pref.weather_lat!, pref.weather_lon!, TEMP_LOOKAHEAD_HOURS);
+        if (range) {
+          if (range.max >= HEAT_THRESHOLD_C && pref.last_heat_alert_date !== todayYMD) {
+            await sendPush(
               admin,
               pref.user_id,
-              `Pluie prévue pour "${ev.title}"`,
-              `${risk.probability}% de risque de pluie à ${time}. Pense à t'organiser.`,
-              ev.id
+              "Forte chaleur en vue",
+              `Jusqu'à ${Math.round(range.max)}°C dans les prochaines heures. Pense à t'hydrater.`,
+              { tag: `temp-hot-${todayYMD}`, type: "temperature", kind: "hot" }
             );
-            alerted++;
+            await admin.from("user_preferences").update({ last_heat_alert_date: todayYMD }).eq("user_id", pref.user_id);
+            tempAlerted++;
+          } else if (range.min <= COLD_THRESHOLD_C && pref.last_cold_alert_date !== todayYMD) {
+            await sendPush(
+              admin,
+              pref.user_id,
+              "Froid vif en vue",
+              `Jusqu'à ${Math.round(range.min)}°C dans les prochaines heures. Pense à te couvrir.`,
+              { tag: `temp-cold-${todayYMD}`, type: "temperature", kind: "cold" }
+            );
+            await admin.from("user_preferences").update({ last_cold_alert_date: todayYMD }).eq("user_id", pref.user_id);
+            tempAlerted++;
           }
-        } catch (err) {
-          await captureException(err, { function: "send-weather-alerts", event_id: ev.id });
         }
-
-        await admin.from("events").update({ weather_alert_sent: true }).eq("id", ev.id);
+      } catch (err) {
+        await captureException(err, { function: "send-weather-alerts", context: "temperature", user_id: pref.user_id });
       }
     }
 
-    return json({ checked, alerted });
+    return json({ checked, alerted, tempAlerted });
   } catch (err) {
     await captureException(err, { function: "send-weather-alerts" });
     return json({ error: String(err) }, 500);

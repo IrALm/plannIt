@@ -6,7 +6,19 @@ import { formatInTimeZone } from "date-fns-tz";
 import { createClient } from "@/lib/supabase/server";
 import { syncEventToGoogle } from "@/lib/google/edge-functions";
 import { APP_TIME_ZONE, toAppTimeZoneInstant } from "@/lib/utils/date";
-import type { CalendarEvent, EventActionState, EventInput } from "./types";
+import type { CalendarEvent, EventActionState, EventInput, EventLocation } from "./types";
+
+const EVENT_COLUMNS =
+  "id, title, description, start_at, end_at, reminders, event_type_id, location_name, location_lat, location_lon";
+
+function toLocation(row: {
+  location_name: string | null;
+  location_lat: number | null;
+  location_lon: number | null;
+}): EventLocation | null {
+  if (row.location_name == null || row.location_lat == null || row.location_lon == null) return null;
+  return { name: row.location_name, lat: row.location_lat, lon: row.location_lon };
+}
 
 /** Un seul événement, par id — utilisé par la feuille mascotte d'alerte
  * météo (l'événement concerné n'est pas forcément dans la plage déjà
@@ -14,11 +26,7 @@ import type { CalendarEvent, EventActionState, EventInput } from "./types";
 export async function getEventById(id: string): Promise<CalendarEvent | null> {
   const supabase = await createClient();
 
-  const { data: e } = await supabase
-    .from("events")
-    .select("id, title, description, start_at, end_at, reminders, event_type_id")
-    .eq("id", id)
-    .single();
+  const { data: e } = await supabase.from("events").select(EVENT_COLUMNS).eq("id", id).single();
   if (!e) return null;
 
   const type = e.event_type_id
@@ -35,6 +43,7 @@ export async function getEventById(id: string): Promise<CalendarEvent | null> {
     eventTypeId: e.event_type_id,
     color: type?.color ?? "blue",
     typeName: type?.name ?? null,
+    location: toLocation(e),
   };
 }
 
@@ -47,7 +56,7 @@ export async function getEventsByRange(
   const [eventsRes, typesRes] = await Promise.all([
     supabase
       .from("events")
-      .select("id, title, description, start_at, end_at, reminders, event_type_id")
+      .select(EVENT_COLUMNS)
       .gte("start_at", startISO)
       .lt("start_at", endISO)
       .order("start_at", { ascending: true }),
@@ -71,6 +80,7 @@ export async function getEventsByRange(
       eventTypeId: e.event_type_id,
       color: type?.color ?? "blue",
       typeName: type?.name ?? null,
+      location: toLocation(e),
     };
   });
 }
@@ -82,6 +92,14 @@ function validate(input: EventInput): string | null {
     return "Oups, l'heure de fin avant le début ?";
   }
   return null;
+}
+
+function locationColumns(location: EventLocation | null | undefined) {
+  return {
+    location_name: location?.name ?? null,
+    location_lat: location?.lat ?? null,
+    location_lon: location?.lon ?? null,
+  };
 }
 
 export async function createEvent(
@@ -107,6 +125,7 @@ export async function createEvent(
       start_at: input.startAt,
       end_at: input.endAt,
       reminders: input.reminders,
+      ...locationColumns(input.location),
     })
     .select("id")
     .single();
@@ -156,6 +175,7 @@ export async function updateEvent(
       start_at: input.startAt,
       end_at: input.endAt,
       reminders: input.reminders,
+      ...locationColumns(input.location),
       ...(startChanged ? { reminders_sent: [] } : {}),
     })
     .eq("id", id);

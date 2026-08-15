@@ -22,21 +22,24 @@ Détail complet de cette feuille de route : mémoire projet `project_roadmap.md`
 - **Sync Google Calendar bidirectionnelle**, avec auto-réparation (un événement PlannIt supprimé côté Google est recréé à la prochaine modif) et import des événements créés directement dans Google, y compris toute la journée
 - **Cascade de retard intelligente** : "je suis en retard" décale automatiquement le reste des activités du jour, plutôt qu'un recalage manuel un par un
 - **Coaching passif** : la vue Stats compare au mois précédent et signale les tendances (type en hausse/baisse, plus longue période sans activité) — pas juste des graphiques à lire
-- **Alertes météo** : types marqués "sensible à la météo" (ex. Sport) déclenchent une notification si pluie prévue dans les prochaines heures (Open-Meteo, ville renseignée une fois dans Réglages)
+- **Alertes météo** : types marqués "sensible à la météo" (ex. Sport) déclenchent une notification si pluie prévue avant l'activité ; alerte température ambiante indépendante (forte chaleur ≥30°C, froid vif ≤3°C, une fois par jour) — tap sur la notif → écran mascotte interactif, pas juste un modal d'édition
+- **Bandeau météo 24h défilant**, visible en permanence sur Semaine/Mois/Stats
+- **Lieu + temps de trajet** : types marqués "nécessite un lieu" (ex. Sport, Travail) demandent une adresse (Nominatim/OpenStreetMap) ; distance à vol d'oiseau + estimation à pied/vélo/voiture depuis la position actuelle (GPS, repli IP), carte OpenStreetMap intégrée, suggestion d'heure de départ
 - Emails : bienvenue + résumé hebdomadaire automatique (si activité prévue cette semaine-là)
 - PWA installable, thème clair/sombre, avatar de profil
 
 **À venir**
 - Perturbations de transport en Île-de-France (API RATP/PRIM) — bloqué en attente d'une clé API à créer par l'utilisateur sur le portail PRIM (Île-de-France Mobilités)
+- Vrai routage (itinéraire réel, pas à vol d'oiseau) — nécessiterait un service de routage payant, écarté pour l'instant au profit d'une estimation gratuite
 - Choix définitif d'une niche cible, pour orienter ces axes vers un public précis plutôt que généraliste
 
 ## Stack technique
 
-**Frontend** — Next.js 15 (App Router) · TypeScript · Tailwind CSS v4 · Zustand · Recharts
+**Frontend** — Next.js 15 (App Router) · TypeScript · Tailwind CSS v4 · Zustand · Recharts · Leaflet/react-leaflet
 
 **Backend** — Supabase (Postgres, Auth, Row Level Security, Edge Functions Deno, pg_cron/pg_net)
 
-**Intégrations** — Google Calendar API · Brevo (email transactionnel) · Web Push (VAPID)
+**Intégrations** — Google Calendar API · Brevo (email transactionnel) · Web Push (VAPID) · Open-Meteo (météo + géocodage) · OpenStreetMap/Nominatim (adresses + fond de carte)
 
 **Infra** — Vercel (hosting front) · Supabase Cloud (hosting back) · Sentry (monitoring, configuré non activé)
 
@@ -128,7 +131,7 @@ Un seul bouton "Continuer avec Google" (`features/auth/actions.ts` → `signInWi
 
 ### Schéma Supabase & Edge Functions
 
-16 migrations (`supabase/migrations/`) appliquées, 7 Edge Functions déployées sur le projet `foukyqukmutuciunctbi` : `google-calendar-oauth` (déconnexion uniquement), `google-calendar` (sync CRUD PlannIt → Google), `sync-google-calendar` (sync retour Google → PlannIt, cron toutes les 10 min), `send-email` (bienvenue), `send-push-reminders` (cron chaque minute), `send-weekly-recap` (cron toutes les 15 min, n'agit que lundi 00h-01h Paris), `send-weather-alerts` (cron toutes les 30 min).
+17 migrations (`supabase/migrations/`) appliquées, 7 Edge Functions déployées sur le projet `foukyqukmutuciunctbi` : `google-calendar-oauth` (déconnexion uniquement), `google-calendar` (sync CRUD PlannIt → Google), `sync-google-calendar` (sync retour Google → PlannIt, cron toutes les 10 min), `send-email` (bienvenue), `send-push-reminders` (cron chaque minute), `send-weekly-recap` (cron toutes les 15 min, n'agit que lundi 00h-01h Paris), `send-weather-alerts` (cron toutes les 30 min).
 
 ### Sync Google Calendar — dans les deux sens
 
@@ -171,7 +174,19 @@ En vue mois, `app/dashboard/page.tsx` fetch aussi le mois précédent ; `compone
 
 ### Alertes météo
 
-Deux réglages à faire une fois : marquer un type "sensible à la météo" (case à cocher à la création d'un type, `components/calendar/type-select.tsx`) et renseigner sa ville dans Réglages (géocodée via Open-Meteo, gratuit, sans clé — `updateWeatherCity` dans `app/settings/actions.ts`). Toutes les 30 min, `send-weather-alerts` vérifie les événements des 4 prochaines heures dont le type est sensible à la météo, interroge la prévision horaire Open-Meteo à la position enregistrée, et pousse une notification si risque de pluie ≥50% ou précipitations ≥0.5 mm. Chaque événement n'est vérifié qu'une fois (`events.weather_alert_sent`). Ne gère qu'une seule ville par compte (pas de lieu par événement) — limite assumée pour un planning perso.
+Deux réglages à faire une fois : marquer un type "sensible à la météo" (case à cocher à la création d'un type, `components/calendar/type-select.tsx`) et renseigner sa ville dans Réglages (géocodée via Open-Meteo, gratuit, sans clé — `updateWeatherCity` dans `app/settings/actions.ts`). Toutes les 30 min, `send-weather-alerts` :
+- **Pluie avant événement** : vérifie les événements des 4 prochaines heures dont le type est sensible à la météo, et pousse une notification si risque de pluie ≥50% ou précipitations ≥0.5 mm. Chaque événement n'est vérifié qu'une fois (`events.weather_alert_sent`). Tap sur la notif → `?weatherAlert=<id>` → `components/calendar/weather-alert-sheet.tsx` (mascotte + options de décalage rapide, réutilise `applyDelayCascade`).
+- **Température ambiante** (indépendante des événements) : vérifie le max/min prévu dans les 6 prochaines heures ; alerte si ≥30°C (chaleur, "pense à t'hydrater") ou ≤3°C (froid, "pense à te couvrir"), au plus une fois par jour et par sens (`user_preferences.last_heat_alert_date`/`last_cold_alert_date`). Tap → `?tempAlert=hot|cold` → `components/calendar/temperature-alert-sheet.tsx` (mascotte, message uniquement, pas d'action).
+
+Ne gère qu'une seule ville par compte (pas de lieu par événement) — limite assumée pour un planning perso.
+
+### Lieu & temps de trajet
+
+Type marqué "nécessite un lieu" (case à cocher à la création d'un type) → l'événement affiche un champ d'adresse (`components/calendar/location-input.tsx`, recherche Nominatim/OpenStreetMap debounced côté serveur — `lib/geo/geocode.ts`, respecte la politique d'usage Nominatim : User-Agent identifiant, appelé serveur pas client). Une fois un lieu choisi, `components/calendar/travel-estimate.tsx` :
+1. Récupère la position actuelle **à la demande** (jamais automatique) — GPS via `navigator.geolocation` en priorité, repli sur géolocalisation IP (`ipapi.co`, approximative) si refusé (`lib/geo/use-current-position.ts`).
+2. Calcule la **distance à vol d'oiseau** (`lib/geo/distance.ts`) — **pas un vrai itinéraire routier** : OSRM (routage OpenStreetMap) n'a qu'une démo publique explicitement "pas pour la production", et un vrai service de routage demanderait une clé payante. Choix assumé : distance haversine + vitesse moyenne par mode (marche 5 km/h, vélo 15 km/h, voiture 30 km/h) — fiable, gratuit, mais approximatif.
+3. Affiche une carte OpenStreetMap (`components/calendar/location-map.tsx`, Leaflet/react-leaflet, chargée à la demande via `next/dynamic({ssr:false})`) avec deux repères et une ligne pointillée (pas la vraie route) entre position actuelle et lieu de l'événement.
+4. Propose marche/vélo/voiture, et calcule l'heure de départ suggérée à partir de l'heure de début de l'activité.
 
 ### PWA
 

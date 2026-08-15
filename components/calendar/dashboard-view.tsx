@@ -14,6 +14,7 @@ import { Timeline } from "./timeline";
 import { MonthView } from "./month-view";
 import { WeatherStrip } from "./weather-strip";
 import { WeatherAlertSheet } from "./weather-alert-sheet";
+import { TemperatureAlertSheet } from "./temperature-alert-sheet";
 import { Fab } from "./fab";
 import { EventModal } from "./event-modal";
 import { useCalendarStore } from "@/stores/calendar.store";
@@ -207,6 +208,7 @@ export function DashboardView({
       )}
 
       <WeatherAlertSheet />
+      <TemperatureAlertSheet />
     </div>
   );
 }

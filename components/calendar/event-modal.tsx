@@ -10,11 +10,13 @@ import { Button } from "@/components/ui/button";
 import { ReminderPicker } from "@/components/ui/reminder-picker";
 import { Mascot } from "@/components/icons/mascot";
 import { TypeSelect } from "@/components/calendar/type-select";
+import { LocationInput } from "@/components/calendar/location-input";
+import { TravelEstimate } from "@/components/calendar/travel-estimate";
 import { useUIStore } from "@/stores/ui.store";
 import type { EventType } from "@/features/calendar/types";
 import { createEventTypeAndReturn } from "@/features/calendar/actions";
 import { createEvent, updateEvent, deleteEvent } from "@/features/events/actions";
-import type { CalendarEvent } from "@/features/events/types";
+import type { CalendarEvent, EventLocation } from "@/features/events/types";
 
 type EventModalProps = {
   types: EventType[];
@@ -42,6 +44,7 @@ export function EventModal({ types, event, defaultDate, defaultReminders }: Even
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("10:00");
   const [reminders, setReminders] = useState<number[]>(defaultReminders);
+  const [location, setLocation] = useState<EventLocation | null>(null);
   const [availableTypes, setAvailableTypes] = useState<EventType[]>(types);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -61,6 +64,7 @@ export function EventModal({ types, event, defaultDate, defaultReminders }: Even
       setStartTime(toTimeInput(new Date(event.startAt)));
       setEndTime(toTimeInput(new Date(event.endAt)));
       setReminders(event.reminders);
+      setLocation(event.location);
     } else {
       setEventTypeId(availableTypes[0]?.id ?? null);
       setTitle("");
@@ -68,16 +72,20 @@ export function EventModal({ types, event, defaultDate, defaultReminders }: Even
       setStartTime("09:00");
       setEndTime("10:00");
       setReminders(defaultReminders);
+      setLocation(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalOpen, modalMode, event]);
 
+  const selectedType = availableTypes.find((t) => t.id === eventTypeId) ?? null;
+
   async function handleCreateType(
     name: string,
     color: Parameters<typeof createEventTypeAndReturn>[1],
-    weatherSensitive: boolean
+    weatherSensitive: boolean,
+    locationRequired: boolean
   ) {
-    const created = await createEventTypeAndReturn(name, color, weatherSensitive);
+    const created = await createEventTypeAndReturn(name, color, weatherSensitive, locationRequired);
     setAvailableTypes((prev) => [...prev, created]);
     return created;
   }
@@ -94,6 +102,7 @@ export function EventModal({ types, event, defaultDate, defaultReminders }: Even
       startAt: new Date(`${date}T${startTime}`).toISOString(),
       endAt: new Date(`${date}T${endTime}`).toISOString(),
       reminders,
+      location: selectedType?.locationRequired ? location : null,
     };
 
     startTransition(async () => {
@@ -180,6 +189,20 @@ export function EventModal({ types, event, defaultDate, defaultReminders }: Even
             />
           </div>
         </div>
+
+        {selectedType?.locationRequired && (
+          <div>
+            <div className="font-mono text-[10px] tracking-[.12em] uppercase text-muted mb-[6px]">
+              Lieu
+            </div>
+            <LocationInput value={location} onChange={setLocation} />
+            {location && (
+              <div className="mt-[10px]">
+                <TravelEstimate location={location} startAt={new Date(`${date}T${startTime}`).toISOString()} />
+              </div>
+            )}
+          </div>
+        )}
 
         <div>
           <div className="font-mono text-[10px] tracking-[.12em] uppercase text-muted mb-[6px]">

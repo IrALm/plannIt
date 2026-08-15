@@ -1,47 +1,30 @@
 # PlannIt
 
-Planning hebdomadaire mobile-first, installable en PWA, avec sync Google Calendar — pensé pour devenir un calendrier qui réagit au monde réel, pas juste un agenda de plus.
+Planning hebdomadaire mobile-first, installable en PWA, avec sync Google Calendar bidirectionnelle et notifications intelligentes.
 
-## Vision
+Les deux points forts : une **sync Google Calendar bidirectionnelle** avec gestion propre des conflits d'origine (aucune suppression croisée destructrice, auto-réparation des copies effacées côté Google), et la **cascade de retard** — décaler un imprévu recale automatiquement le reste de la journée, ce qu'aucun calendrier mainstream (Google/Apple/Notion) ne propose. Le reste (météo, lieu/trajet, coaching stats) complète l'expérience mais n'est pas l'axe différenciant du projet — voir [Vision & perspectives](#vision--perspectives).
 
-Le marché du calendrier (Google, Apple, Notion Calendar) est saturé et dominé par des acteurs installés — un calendrier générique de plus n'a aucune raison de gagner. La différenciation de PlannIt n'est pas fonctionnelle, elle est stratégique : **viser une niche précise** (étudiants en révision, suivi médical récurrent, freelances — à trancher) plutôt que "tout le monde", et se démarquer sur trois axes qu'aucun calendrier mainstream ne couvre aujourd'hui :
+## Fonctionnalités
 
-1. **Cascade de retard intelligente** — en retard sur un rendez-vous, PlannIt propose de décaler le reste de la journée automatiquement, au lieu de forcer un recalage manuel événement par événement.
-2. **Signal temps réel** — le planning réagit au monde réel : météo (partout, via Open-Meteo) et perturbations de transport (Île-de-France, via l'API RATP/PRIM) pour suggérer de partir plus tôt ou décaler une activité en plein air.
-3. **Coaching passif** — les statistiques déjà présentes dans l'app (répartition par type, jours actifs) deviennent un vrai retour sur les habitudes ("40% de sport en moins que le mois dernier"), pas juste un graphique à consulter.
-
-Détail complet de cette feuille de route : mémoire projet `project_roadmap.md`.
-
-## Versions & fonctionnalités
-
-**Aujourd'hui (en production)**
+**Calendrier**
+- Sync Google Calendar **bidirectionnelle** : les événements créés dans PlannIt partent vers Google, et ceux créés directement dans Google Calendar (y compris toute la journée) sont importés automatiquement. Auto-réparation si une copie Google est supprimée entre-temps.
 - Auth Google OAuth unique (login + accès Google Calendar dans le même écran de consentement)
-- Vue semaine, vue mois, vue Stats (répartition par type, tendances, graphiques) — navigation illimitée dans le temps
-- Événements avec types/couleurs personnalisables, rappels entièrement paramétrables (minute/heure/jour, aucune limite)
-- Push notifications serveur (fonctionnent app fermée, écran verrouillé) + notification automatique au démarrage de chaque activité
-- **Sync Google Calendar bidirectionnelle**, avec auto-réparation (un événement PlannIt supprimé côté Google est recréé à la prochaine modif) et import des événements créés directement dans Google, y compris toute la journée
-- **Cascade de retard intelligente** : "je suis en retard" décale automatiquement le reste des activités du jour, plutôt qu'un recalage manuel un par un
-- **Coaching passif** : la vue Stats compare au mois précédent et signale les tendances (type en hausse/baisse, plus longue période sans activité) — pas juste des graphiques à lire
-- **Alertes météo** : types marqués "sensible à la météo" (ex. Sport) déclenchent une notification si pluie prévue avant l'activité ; alerte température ambiante indépendante (forte chaleur ≥30°C, froid vif ≤3°C, une fois par jour) — tap sur la notif → écran mascotte interactif, pas juste un modal d'édition
-- **Bandeau météo 24h défilant**, visible en permanence sur Semaine/Mois/Stats
-- **Lieu + temps de trajet** : types marqués "nécessite un lieu" (ex. Sport, Travail) demandent une adresse (Nominatim/OpenStreetMap) ; distance à vol d'oiseau + estimation à pied/vélo/voiture depuis la position actuelle (GPS, repli IP), carte OpenStreetMap intégrée, suggestion d'heure de départ
+- Vue semaine, vue mois, vue Stats — navigation illimitée dans le temps
+- Types d'activité personnalisables (nom, couleur, et deux propriétés optionnelles : sensible à la météo / nécessite un lieu — gérables à tout moment dans Réglages)
+
+**Notifications intelligentes**
+- **Cascade de retard** : "je suis en retard" décale automatiquement cette activité et toutes celles qui suivent le même jour, avec un délai personnalisable (presets ou saisie libre) — plutôt qu'un recalage manuel un par un. Aucun calendrier mainstream ne le fait.
+- Rappels par activité entièrement paramétrables (minute/heure/jour, sans limite) + notification automatique au démarrage de chaque activité — vraies push notifications serveur, fonctionnent app fermée et écran verrouillé.
+- Alertes météo : pluie prévue avant une activité sensible à la météo (tap → écran mascotte avec option de décalage), et alerte température ambiante indépendante (forte chaleur / froid vif, une fois par jour).
+- Lieu & temps de trajet : pour une activité qui le demande, recherche d'adresse, carte, distance et temps de trajet estimé à pied/vélo/voiture depuis la position actuelle, heure de départ suggérée.
+- Bandeau météo 24h défilant, visible en permanence sur Semaine/Mois/Stats.
+
+**Coaching passif**
+- La vue Stats compare le mois en cours au précédent et signale les tendances (type d'activité en hausse/baisse, plus longue période sans rien de prévu) — un vrai retour sur les habitudes, pas juste un graphique à lire.
+
+**Le reste**
 - Emails : bienvenue + résumé hebdomadaire automatique (si activité prévue cette semaine-là)
 - PWA installable, thème clair/sombre, avatar de profil
-
-**À venir**
-- Perturbations de transport en Île-de-France (API RATP/PRIM) — bloqué en attente d'une clé API à créer par l'utilisateur sur le portail PRIM (Île-de-France Mobilités)
-- Vrai routage (itinéraire réel, pas à vol d'oiseau) — nécessiterait un service de routage payant, écarté pour l'instant au profit d'une estimation gratuite
-- Choix définitif d'une niche cible, pour orienter ces axes vers un public précis plutôt que généraliste
-
-## Stack technique
-
-**Frontend** — Next.js 15 (App Router) · TypeScript · Tailwind CSS v4 · Zustand · Recharts · Leaflet/react-leaflet
-
-**Backend** — Supabase (Postgres, Auth, Row Level Security, Edge Functions Deno, pg_cron/pg_net)
-
-**Intégrations** — Google Calendar API · Brevo (email transactionnel) · Web Push (VAPID) · Open-Meteo (météo + géocodage) · OpenStreetMap/Nominatim (adresses + fond de carte)
-
-**Infra** — Vercel (hosting front) · Supabase Cloud (hosting back) · Sentry (monitoring, configuré non activé)
 
 ## Architecture
 
@@ -77,8 +60,8 @@ graph TD
         direction TB
         Postgres[("Postgres<br/>RLS par utilisateur")]:::pgNode
         Auth["Auth<br/>Google OAuth"]:::authNode
-        EdgeFn["Edge Functions — Deno<br/>google-calendar · send-email<br/>send-push-reminders · send-weekly-recap"]:::edgeNode
-        Cron["pg_cron + pg_net<br/>planification"]:::edgeNode
+        EdgeFn["Edge Functions — Deno<br/>google-calendar · sync-google-calendar<br/>send-email · send-push-reminders<br/>send-weekly-recap · send-weather-alerts"]:::edgeNode
+        Cron["pg_cron + pg_net<br/>1 à 30 min selon la tâche"]:::edgeNode
     end
     class Backend dataLayer
 
@@ -87,6 +70,8 @@ graph TD
         GoogleCal["Google Calendar API"]:::externalNode
         Brevo["Brevo<br/>emails transactionnels"]:::externalNode
         WebPush["Web Push<br/>VAPID / service navigateur"]:::externalNode
+        OpenMeteo["Open-Meteo<br/>météo + géocodage ville"]:::externalNode
+        OSM["OpenStreetMap<br/>Nominatim (adresses) + tuiles carte"]:::externalNode
     end
     class External externalLayer
 
@@ -98,17 +83,44 @@ graph TD
 
     PWA --> Vercel
     PWA -->|abonnement push| WebPush
+    PWA -->|tuiles carte, direct| OSM
     Vercel --> Postgres
     Vercel --> Auth
     Vercel --> EdgeFn
-    Cron -->|chaque minute / 15 min| EdgeFn
+    Vercel -->|géocodage adresse| OSM
+    Vercel -->|bandeau météo| OpenMeteo
+    Cron -->|planifié| EdgeFn
     EdgeFn --> Postgres
     EdgeFn --> GoogleCal
     EdgeFn --> Brevo
     EdgeFn -->|notification| WebPush
+    EdgeFn -->|prévisions| OpenMeteo
     Vercel --> Sentry
     EdgeFn --> Sentry
 ```
+
+## Vision & perspectives
+
+Le marché du calendrier (Google, Apple, Notion Calendar) est saturé et dominé par des acteurs installés — un calendrier générique de plus n'a aucune raison de gagner. La différenciation de PlannIt n'est pas fonctionnelle par défaut, elle doit être stratégique.
+
+**Priorité retenue après une revue critique honnête des fonctionnalités construites** : la **cascade de retard** est le seul axe qu'aucun concurrent (Google, Apple, Notion) ne propose — c'est là que l'effort produit doit se concentrer. Les alertes météo/trajet, elles, dupliquent partiellement des fonctionnalités déjà mieux intégrées ailleurs (Apple/Google Weather pour les alertes ambiantes, "heure de départ" avec vrai trafic dans Google Calendar) ; elles restent utiles pour l'angle "lié précisément à ton agenda", mais ne sont plus la priorité d'investissement.
+
+**Prochaines étapes envisagées, dans cet ordre :**
+1. Conscience des collisions dans la cascade de retard (événements "non déplaçables", pour ne jamais créer de chevauchement en décalant)
+2. Détection proactive du retard (l'app propose le décalage d'elle-même plutôt que d'attendre que l'utilisateur ouvre l'app)
+3. Délai suggéré personnalisé, appris des habitudes réelles de l'utilisateur (exploite les Stats déjà construites)
+4. Perturbations de transport en Île-de-France (API RATP/PRIM) — en attente d'une clé API PRIM
+5. Choix définitif d'une niche cible (étudiants, suivi médical, freelances…) pour orienter le produit vers un public précis plutôt que généraliste
+
+## Stack technique
+
+**Frontend** — Next.js 15 (App Router) · TypeScript · Tailwind CSS v4 · Zustand · Recharts · Leaflet/react-leaflet
+
+**Backend** — Supabase (Postgres, Auth, Row Level Security, Edge Functions Deno, pg_cron/pg_net)
+
+**Intégrations** — Google Calendar API · Brevo (email transactionnel) · Web Push (VAPID) · Open-Meteo (météo + géocodage) · OpenStreetMap/Nominatim (adresses + fond de carte)
+
+**Infra** — Vercel (hosting front) · Supabase Cloud (hosting back) · Sentry (monitoring, configuré non activé)
 
 ---
 
@@ -131,14 +143,14 @@ Un seul bouton "Continuer avec Google" (`features/auth/actions.ts` → `signInWi
 
 ### Schéma Supabase & Edge Functions
 
-17 migrations (`supabase/migrations/`) appliquées, 7 Edge Functions déployées sur le projet `foukyqukmutuciunctbi` : `google-calendar-oauth` (déconnexion uniquement), `google-calendar` (sync CRUD PlannIt → Google), `sync-google-calendar` (sync retour Google → PlannIt, cron toutes les 10 min), `send-email` (bienvenue), `send-push-reminders` (cron chaque minute), `send-weekly-recap` (cron toutes les 15 min, n'agit que lundi 00h-01h Paris), `send-weather-alerts` (cron toutes les 30 min).
+17 migrations (`supabase/migrations/`) appliquées, 7 Edge Functions déployées sur le projet `foukyqukmutuciunctbi` : `google-calendar-oauth` (déconnexion uniquement), `google-calendar` (sync CRUD PlannIt → Google), `sync-google-calendar` (sync retour Google → PlannIt, cron toutes les 10 min), `send-email` (bienvenue), `send-push-reminders` (cron chaque minute), `send-weekly-recap` (cron toutes les 15 min, n'agit que lundi 00h-01h Paris), `send-weather-alerts` (cron toutes les 30 min, pluie + température).
 
 ### Sync Google Calendar — dans les deux sens
 
-- **PlannIt → Google** (existant) : chaque création/modif/suppression dans PlannIt appelle `google-calendar` (`lib/google/edge-functions.ts` → `syncEventToGoogle`), qui répercute côté Google et tient `google_calendar_event_map` à jour. **Auto-réparation** : si une modification vise un événement dont la copie Google a été supprimée directement là-bas (mapping absent ou Google renvoie 404/410), l'Edge Function le **recrée** côté Google plutôt que d'échouer silencieusement — un événement PlannIt ne peut plus rester "orphelin" côté Google après une modif.
-- **Google → PlannIt** (`sync-google-calendar`) : toutes les 10 min, utilise le `syncToken` officiel de l'API Calendar (incrémental — inclut les suppressions, contrairement à un simple `events.list` borné par date) pour importer tout événement créé/modifié/supprimé directement dans Google Calendar. Rappels par défaut appliqués aux imports (`user_preferences.default_reminders`) — sauf pour les événements toute la journée (`reminders: []`, un rappel "30 min avant minuit" n'a pas de sens ; seule la notification automatique de démarrage s'applique). **Événements toute la journée supportés** : le schéma `events` n'a pas cette notion nativement, donc représentés comme un bloc couvrant exactement ces jours-là à Paris (`resolveEventRange` dans `sync-google-calendar/index.ts`). Premier sync borné à J-60/J+180 (au-delà, un événement Google resterait invisible — limite assumée pour un planning perso, pas un vrai agenda d'entreprise). `syncToken` invalide (410) → réinitialisé, resync complet au passage suivant. Ne remonte que l'agenda `primary` du compte connecté, pas les agendas secondaires/partagés.
-- Les deux sens partagent la même table de correspondance (`google_calendar_event_map`), donc pas de double-import ni de boucle : un événement créé dans PlannIt et vu ensuite dans le flux Google est reconnu comme déjà connu, jamais réimporté.
-- **Asymétrie volontaire sur les suppressions** (`events.synced_from_google`) : un événement supprimé côté Google n'efface sa copie PlannIt que s'il provenait lui-même de Google (import). Un événement créé dans PlannIt reste la propriété de PlannIt même si sa copie Google disparaît — il est simplement recréé côté Google au prochain edit (cf. auto-réparation ci-dessus), jamais supprimé de PlannIt à cause d'un geste fait côté Google.
+- **PlannIt → Google** (existant) : chaque création/modif/suppression dans PlannIt appelle `google-calendar` (`lib/google/edge-functions.ts` → `syncEventToGoogle`), qui répercute côté Google et tient `google_calendar_event_map` à jour. **Auto-réparation** : si une modification vise un événement dont la copie Google a été supprimée directement là-bas (mapping absent, Google renvoie 404/410, ou l'événement existe encore mais `status:"cancelled"` — suppression "douce" fréquente côté Google, pas toujours une vraie erreur HTTP), l'Edge Function le **recrée** côté Google plutôt que d'échouer silencieusement.
+- **Google → PlannIt** (`sync-google-calendar`) : toutes les 10 min, utilise le `syncToken` officiel de l'API Calendar (incrémental — inclut les suppressions, contrairement à un simple `events.list` borné par date) pour importer tout événement créé/modifié/supprimé directement dans Google Calendar, y compris toute la journée (représenté comme un bloc minuit-à-minuit à Paris, le schéma `events` n'ayant pas cette notion nativement). Premier sync borné à J-60/J+180. `syncToken` invalide (410) → réinitialisé, resync complet au passage suivant. Ne remonte que l'agenda `primary` du compte connecté.
+- Les deux sens partagent la même table de correspondance (`google_calendar_event_map`) — pas de double-import ni de boucle.
+- **Asymétrie volontaire sur les suppressions** (`events.synced_from_google`) : une suppression côté Google n'efface la copie PlannIt que si Google en était l'origine (import). Un événement créé dans PlannIt reste sa propriété même si sa copie Google disparaît — recréée au prochain edit, jamais supprimée à cause d'un geste fait côté Google.
 
 ```bash
 npx supabase login
@@ -162,11 +174,11 @@ Bienvenue (1er login) et résumé hebdomadaire (lundi, si ≥1 activité cette s
 
 ### Push notifications
 
-Vraies push notifications serveur (fonctionnent app fermée, écran verrouillé, son/vibration natifs — soumis aux réglages système de l'appareil). Toggle dans Réglages → `pushManager.subscribe()` → stocké dans `push_subscriptions`. Rappels entièrement paramétrables (`components/ui/reminder-picker.tsx`, minute/heure/jour, aucun preset figé) + notification automatique et implicite au démarrage de chaque activité (offset `0`, en plus des rappels configurés). Déclenché par `pg_cron` → Edge Function `send-push-reminders` chaque minute.
+Vraies push notifications serveur (fonctionnent app fermée, écran verrouillé, son/vibration natifs — soumis aux réglages système de l'appareil). Toggle dans Réglages → `pushManager.subscribe()` → stocké dans `push_subscriptions`. Rappels entièrement paramétrables (`components/ui/reminder-picker.tsx`, minute/heure/jour, aucun preset figé) + notification automatique et implicite au démarrage de chaque activité (offset `0`, en plus des rappels configurés). Déclenché par `pg_cron` → Edge Function `send-push-reminders` chaque minute. Le service worker (`worker/index.ts`) route chaque tap selon le type de notification (`?event=`, `?weatherAlert=`, `?tempAlert=`) vers l'écran approprié dans `DashboardView`.
 
 ### Cascade de retard intelligente
 
-Bouton horloge sur une activité du jour (`components/calendar/delay-button.tsx`) → choix rapide 5/10/15/30 min → `applyDelayCascade` (`features/events/actions.ts`) décale cet événement et tous ceux qui suivent **le même jour** (heure de Paris) du même délai, réinitialise leurs rappels et resynchronise chacun vers Google. N'affecte jamais les jours suivants.
+Bouton horloge sur une activité du jour (`components/calendar/delay-button.tsx`, feuille mascotte) → choix rapide 5/10/15/30 min ou délai personnalisé (nombre + min/h) → `applyDelayCascade` (`features/events/actions.ts`) décale cet événement et tous ceux qui suivent **le même jour** (heure de Paris) du même délai **en parallèle** (pas un par un — chaque décalage resynchronise aussi vers Google), réinitialise leurs rappels. N'affecte jamais les jours suivants.
 
 ### Coaching passif (Stats)
 
@@ -174,19 +186,19 @@ En vue mois, `app/dashboard/page.tsx` fetch aussi le mois précédent ; `compone
 
 ### Alertes météo
 
-Deux réglages à faire une fois : marquer un type "sensible à la météo" (case à cocher à la création d'un type, `components/calendar/type-select.tsx`) et renseigner sa ville dans Réglages (géocodée via Open-Meteo, gratuit, sans clé — `updateWeatherCity` dans `app/settings/actions.ts`). Toutes les 30 min, `send-weather-alerts` :
-- **Pluie avant événement** : vérifie les événements des 4 prochaines heures dont le type est sensible à la météo, et pousse une notification si risque de pluie ≥50% ou précipitations ≥0.5 mm. Chaque événement n'est vérifié qu'une fois (`events.weather_alert_sent`). Tap sur la notif → `?weatherAlert=<id>` → `components/calendar/weather-alert-sheet.tsx` (mascotte + options de décalage rapide, réutilise `applyDelayCascade`).
-- **Température ambiante** (indépendante des événements) : vérifie le max/min prévu dans les 6 prochaines heures ; alerte si ≥30°C (chaleur, "pense à t'hydrater") ou ≤3°C (froid, "pense à te couvrir"), au plus une fois par jour et par sens (`user_preferences.last_heat_alert_date`/`last_cold_alert_date`). Tap → `?tempAlert=hot|cold` → `components/calendar/temperature-alert-sheet.tsx` (mascotte, message uniquement, pas d'action).
+Deux réglages à faire une fois : marquer un type "sensible à la météo" et/ou "nécessite un lieu" (`components/settings/event-types-manager.tsx` dans Réglages — gère tous les types existants, pas seulement ceux créés après coup) et renseigner sa ville dans Réglages (géocodée via Open-Meteo, gratuit, sans clé — `updateWeatherCity`). Toutes les 30 min, `send-weather-alerts` :
+- **Pluie avant événement** : vérifie les événements des 4 prochaines heures dont le type est sensible à la météo, pousse une notification si risque de pluie ≥50% ou précipitations ≥0.5 mm (`events.weather_alert_sent`, vérifié une seule fois). Tap → `?weatherAlert=<id>` → `weather-alert-sheet.tsx` (mascotte + décalage rapide, réutilise `applyDelayCascade`).
+- **Température ambiante** (indépendante des événements) : max/min prévu sur 6h ; alerte si ≥30°C ou ≤3°C, au plus une fois par jour et par sens (`user_preferences.last_heat_alert_date`/`last_cold_alert_date`). Tap → `?tempAlert=hot|cold` → `temperature-alert-sheet.tsx` (mascotte, message uniquement).
 
-Ne gère qu'une seule ville par compte (pas de lieu par événement) — limite assumée pour un planning perso.
+Une seule ville par compte (pas de lieu par événement pour la météo) — limite assumée pour un planning perso.
 
 ### Lieu & temps de trajet
 
-Type marqué "nécessite un lieu" (case à cocher à la création d'un type) → l'événement affiche un champ d'adresse (`components/calendar/location-input.tsx`, recherche Nominatim/OpenStreetMap debounced côté serveur — `lib/geo/geocode.ts`, respecte la politique d'usage Nominatim : User-Agent identifiant, appelé serveur pas client). Une fois un lieu choisi, `components/calendar/travel-estimate.tsx` :
-1. Récupère la position actuelle **à la demande** (jamais automatique) — GPS via `navigator.geolocation` en priorité, repli sur géolocalisation IP (`ipapi.co`, approximative) si refusé (`lib/geo/use-current-position.ts`).
-2. Calcule la **distance à vol d'oiseau** (`lib/geo/distance.ts`) — **pas un vrai itinéraire routier** : OSRM (routage OpenStreetMap) n'a qu'une démo publique explicitement "pas pour la production", et un vrai service de routage demanderait une clé payante. Choix assumé : distance haversine + vitesse moyenne par mode (marche 5 km/h, vélo 15 km/h, voiture 30 km/h) — fiable, gratuit, mais approximatif.
-3. Affiche une carte OpenStreetMap (`components/calendar/location-map.tsx`, Leaflet/react-leaflet, chargée à la demande via `next/dynamic({ssr:false})`) avec deux repères et une ligne pointillée (pas la vraie route) entre position actuelle et lieu de l'événement.
-4. Propose marche/vélo/voiture, et calcule l'heure de départ suggérée à partir de l'heure de début de l'activité.
+Type marqué "nécessite un lieu" → l'événement affiche un champ d'adresse (`components/calendar/location-input.tsx`, recherche Nominatim/OpenStreetMap debounced côté serveur — `lib/geo/geocode.ts`, User-Agent identifiant requis par la politique d'usage Nominatim). Une fois un lieu choisi, `components/calendar/travel-estimate.tsx` :
+1. Position actuelle **à la demande** (jamais automatique) — GPS via `navigator.geolocation` en priorité, repli sur géolocalisation IP (`ipapi.co`, appelée côté client pour voir la vraie IP de l'utilisateur) si refusé.
+2. **Distance à vol d'oiseau** (`lib/geo/distance.ts`), pas un vrai itinéraire routier — OSRM (routage OSM) n'a qu'une démo publique explicitement "pas pour la production", un vrai routage demanderait une clé payante. Choix assumé : haversine + vitesse moyenne par mode (marche 5, vélo 15, voiture 30 km/h).
+3. Carte OpenStreetMap (`location-map.tsx`, Leaflet/react-leaflet, chargée à la demande via `next/dynamic({ssr:false})`) avec deux repères et une ligne pointillée (pas la vraie route).
+4. Marche/vélo/voiture + heure de départ suggérée.
 
 ### PWA
 
@@ -198,7 +210,7 @@ Type marqué "nécessite un lieu" (case à cocher à la création d'un type) →
 app/            routes Next.js (App Router)
 components/     UI (ui/, calendar/, settings/, onboarding/, pwa/...)
 features/       logique métier par domaine (auth, calendar, events, profile, notifications)
-lib/            clients Supabase, utils (date/fuseau, reminders, url)
+lib/            clients Supabase, utils (date/fuseau, reminders, url, geo/météo)
 stores/         état Zustand (UI transitoire)
 supabase/       migrations SQL + Edge Functions Deno
 worker/         service worker personnalisé (push notifications)

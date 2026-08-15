@@ -3,6 +3,8 @@ import {
   endOfWeek,
   startOfMonth,
   endOfMonth,
+  startOfYear,
+  endOfYear,
   addDays,
   eachDayOfInterval,
 } from "date-fns";
@@ -67,6 +69,16 @@ export function getMonthGridRange(date: Date) {
 export function getMonthGridDays(date: Date): Date[] {
   const { start, end } = getMonthGridRange(date);
   return eachDayOfInterval({ start, end });
+}
+
+/** Bornes exactes du mois (sans padding des semaines de bord) — pour les
+ * stats, où seuls les événements réellement dans le mois doivent compter. */
+export function getMonthRange(date: Date) {
+  return { start: startOfMonth(date), end: endOfMonth(date) };
+}
+
+export function getYearRange(date: Date) {
+  return { start: startOfYear(date), end: endOfYear(date) };
 }
 
 /** "août 2026" */

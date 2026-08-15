@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { isSameDay, format, parse } from "date-fns";
 import { Settings } from "lucide-react";
@@ -25,15 +26,30 @@ type DashboardViewProps = {
   events: CalendarEvent[];
   types: EventType[];
   defaultReminders: number[];
-  view: "week" | "month";
+  view: "week" | "month" | "stats";
   anchorDate: string;
+  statsPeriod: "month" | "year";
 };
+
+// recharts (~120kB) n'est chargée que si l'utilisateur ouvre l'onglet Stats —
+// évite d'alourdir le bundle initial du dashboard (semaine/mois) pour tout
+// le monde.
+const StatsView = dynamic(() => import("./stats-view").then((m) => m.StatsView), {
+  ssr: false,
+  loading: () => <div className="flex-1 flex items-center justify-center text-ink-2 text-sm">Chargement…</div>,
+});
 
 function monthUrl(date: Date) {
   return `/dashboard?view=month&month=${format(date, "yyyy-MM")}`;
 }
 function dayUrl(date: Date) {
   return `/dashboard?view=week&date=${format(date, "yyyy-MM-dd")}`;
+}
+function monthStatsUrl(date: Date) {
+  return `/dashboard?view=stats&period=month&month=${format(date, "yyyy-MM")}`;
+}
+function yearStatsUrl(date: Date) {
+  return `/dashboard?view=stats&period=year&year=${format(date, "yyyy")}`;
 }
 
 export function DashboardView({
@@ -44,6 +60,7 @@ export function DashboardView({
   defaultReminders,
   view,
   anchorDate,
+  statsPeriod,
 }: DashboardViewProps) {
   const router = useRouter();
   // anchorDate est un Y-M-D pur (jamais un instant sérialisé, cf.
@@ -87,7 +104,7 @@ export function DashboardView({
         <div className="flex-1 min-w-0">
           <div className="font-serif text-xl truncate">Bonjour, {displayName}</div>
           <div className="font-mono text-[10.5px] tracking-[.08em] text-muted mt-[3px]">
-            {view === "week" ? formatHeaderDate(selectedDate) : "Vue mensuelle"}
+            {view === "week" ? formatHeaderDate(selectedDate) : view === "month" ? "Vue mensuelle" : "Stats"}
           </div>
         </div>
         <ThemeToggle className="shrink-0" />
@@ -104,24 +121,42 @@ export function DashboardView({
           options={[
             { value: "week", label: "Semaine" },
             { value: "month", label: "Mois" },
+            { value: "stats", label: "Stats" },
           ]}
           value={view}
           onChange={(next) =>
-            router.push(next === "month" ? monthUrl(anchorDateObj) : "/dashboard")
+            router.push(
+              next === "month"
+                ? monthUrl(anchorDateObj)
+                : next === "stats"
+                  ? "/dashboard?view=stats"
+                  : "/dashboard"
+            )
           }
         />
       </div>
 
-      {view === "week" ? (
+      {view === "week" && (
         <>
           <WeekStrip />
           <Timeline events={dayEvents} onEventClick={openEditModal} />
         </>
-      ) : (
+      )}
+      {view === "month" && (
         <MonthView anchorDate={anchorDateObj} events={events} monthUrl={monthUrl} dayUrl={dayUrl} />
       )}
+      {view === "stats" && (
+        <StatsView
+          anchorDate={anchorDateObj}
+          period={statsPeriod}
+          events={events}
+          types={types}
+          monthStatsUrl={monthStatsUrl}
+          yearStatsUrl={yearStatsUrl}
+        />
+      )}
 
-      <Fab onClick={openAddModal} />
+      {view !== "stats" && <Fab onClick={openAddModal} />}
 
       {modalOpen && (
         <EventModal

@@ -2,11 +2,24 @@ import { redirect } from "next/navigation";
 import { parse } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardView } from "@/components/calendar/dashboard-view";
-import { getWeekRange, getMonthGridRange, toAppTimeZoneInstant, todayYMD } from "@/lib/utils/date";
+import {
+  getWeekRange,
+  getMonthGridRange,
+  getMonthRange,
+  getYearRange,
+  toAppTimeZoneInstant,
+  todayYMD,
+} from "@/lib/utils/date";
 import { getEventsByRange } from "@/features/events/actions";
 import { listEventTypes } from "@/features/calendar/actions";
 
-type DashboardSearchParams = Promise<{ view?: string; month?: string; date?: string }>;
+type DashboardSearchParams = Promise<{
+  view?: string;
+  month?: string;
+  date?: string;
+  period?: string;
+  year?: string;
+}>;
 
 export default async function DashboardPage({
   searchParams,
@@ -32,18 +45,38 @@ export default async function DashboardPage({
   if (!profile?.profile_completed) redirect("/complete-profile");
 
   const params = await searchParams;
-  const view: "week" | "month" = params.view === "month" ? "month" : "week";
+  const view: "week" | "month" | "stats" =
+    params.view === "month" ? "month" : params.view === "stats" ? "stats" : "week";
+  const statsPeriod: "month" | "year" = params.period === "year" ? "year" : "month";
 
   // Toujours résolu en Y-M-D pur (jamais en instant sérialisé) : "aujourd'hui"
   // est calculé au vrai fuseau de Paris via todayYMD() (fiable quel que soit
   // le fuseau système du serveur), et un Y-M-D fourni par le client (navigation
-  // mois/jour) est repris tel quel — il a déjà été choisi dans son propre
-  // fuseau réel côté navigateur.
-  const anchorYMD = view === "month" ? (params.month ? `${params.month}-01` : todayYMD()) : (params.date ?? todayYMD());
+  // mois/jour/année) est repris tel quel — il a déjà été choisi dans son
+  // propre fuseau réel côté navigateur.
+  let anchorYMD: string;
+  if (view === "month") {
+    anchorYMD = params.month ? `${params.month}-01` : todayYMD();
+  } else if (view === "stats") {
+    anchorYMD =
+      statsPeriod === "year"
+        ? `${params.year ?? todayYMD().slice(0, 4)}-01-01`
+        : params.month
+          ? `${params.month}-01`
+          : todayYMD();
+  } else {
+    anchorYMD = params.date ?? todayYMD();
+  }
   const anchorDate = parse(anchorYMD, "yyyy-MM-dd", new Date());
 
   const { start, end } =
-    view === "month" ? getMonthGridRange(anchorDate) : getWeekRange(anchorDate);
+    view === "month"
+      ? getMonthGridRange(anchorDate)
+      : view === "stats"
+        ? statsPeriod === "year"
+          ? getYearRange(anchorDate)
+          : getMonthRange(anchorDate)
+        : getWeekRange(anchorDate);
 
   // Conversion en vrais instants UTC (heure de Paris) uniquement pour
   // interroger Supabase — jamais renvoyée telle quelle au client (cf.
@@ -67,6 +100,7 @@ export default async function DashboardPage({
       defaultReminders={prefs?.default_reminders ?? [30, 5]}
       view={view}
       anchorDate={anchorYMD}
+      statsPeriod={statsPeriod}
     />
   );
 }

@@ -6,7 +6,7 @@ type SegmentedOption<T extends string> = {
 };
 
 type SegmentedControlProps<T extends string> = {
-  options: [SegmentedOption<T>, SegmentedOption<T>];
+  options: SegmentedOption<T>[];
   value: T;
   onChange: (value: T) => void;
   className?: string;

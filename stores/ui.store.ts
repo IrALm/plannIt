@@ -2,37 +2,27 @@
 
 import { create } from "zustand";
 
-type Theme = "light" | "dark" | "auto";
-type ResolvedTheme = "light" | "dark";
+type Theme = "light" | "dark";
 
 const STORAGE_KEY = "plannit-theme";
 
-function resolveTheme(theme: Theme): ResolvedTheme {
-  if (theme === "auto") {
-    if (typeof window === "undefined") return "light";
-    return window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light";
-  }
-  return theme;
-}
-
+// Thème clair par défaut partout tant que l'utilisateur n'a pas explicitement
+// choisi "Sombre" dans les Réglages — ne suit plus prefers-color-scheme.
 function readInitialTheme(): Theme {
   if (typeof window === "undefined") return "light";
   const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored === "light" || stored === "dark" || stored === "auto") return stored;
-  return "auto";
+  return stored === "dark" ? "dark" : "light";
 }
 
-function applyResolvedTheme(resolved: ResolvedTheme) {
+function applyTheme(theme: Theme) {
   if (typeof document !== "undefined") {
-    document.documentElement.setAttribute("data-theme", resolved);
+    document.documentElement.setAttribute("data-theme", theme);
   }
 }
 
 type UIState = {
   theme: Theme;
-  resolvedTheme: ResolvedTheme;
+  resolvedTheme: Theme;
   setTheme: (theme: Theme) => void;
 
   modalOpen: boolean;
@@ -48,14 +38,13 @@ export const useUIStore = create<UIState>((set) => {
 
   return {
     theme: initialTheme,
-    resolvedTheme: resolveTheme(initialTheme),
+    resolvedTheme: initialTheme,
     setTheme: (theme) => {
-      const resolved = resolveTheme(theme);
       if (typeof window !== "undefined") {
         window.localStorage.setItem(STORAGE_KEY, theme);
       }
-      applyResolvedTheme(resolved);
-      set({ theme, resolvedTheme: resolved });
+      applyTheme(theme);
+      set({ theme, resolvedTheme: theme });
     },
 
     modalOpen: false,

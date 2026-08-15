@@ -61,10 +61,11 @@ export const viewport: Viewport = {
 const THEME_INIT_SCRIPT = `
 (function () {
   try {
+    // Thème clair par défaut partout, y compris à l'onboarding, tant que
+    // l'utilisateur n'a pas explicitement choisi "Sombre" dans les Réglages
+    // — ne suit plus la préférence système (prefers-color-scheme).
     var stored = localStorage.getItem('plannit-theme');
-    var theme = stored === 'light' || stored === 'dark'
-      ? stored
-      : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    var theme = stored === 'dark' ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', theme);
   } catch (e) {}
 })();

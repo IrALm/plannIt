@@ -53,6 +53,7 @@ export type Database = {
           google_event_id: string | null
           id: string
           reminders: number[]
+          reminders_sent: number[]
           start_at: string
           title: string
           updated_at: string
@@ -66,6 +67,7 @@ export type Database = {
           google_event_id?: string | null
           id?: string
           reminders?: number[]
+          reminders_sent?: number[]
           start_at: string
           title: string
           updated_at?: string
@@ -79,6 +81,7 @@ export type Database = {
           google_event_id?: string | null
           id?: string
           reminders?: number[]
+          reminders_sent?: number[]
           start_at?: string
           title?: string
           updated_at?: string
@@ -216,6 +219,33 @@ export type Database = {
           id?: string
           profile_completed?: boolean
           updated_at?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth_key: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          user_id: string
+        }
+        Insert: {
+          auth_key: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_id: string
+        }
+        Update: {
+          auth_key?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_id?: string
         }
         Relationships: []
       }

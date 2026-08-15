@@ -59,10 +59,32 @@ Aucune URL n'est codée en dur en fonction de l'environnement — tout passe par
 
 **Reste à faire côté Supabase Auth (dashboard, pas de CLI pour ça)** : Authentication → URL Configuration → ajouter `https://plann-it-cyan.vercel.app/**` aux Redirect URLs autorisées (actuellement seul `http://localhost:3000/**` y est). Sans ça, la connexion Google échouera en prod même si le code construit la bonne URL — Supabase refuse toute redirection hors liste blanche.
 
-### Emails transactionnels (Brevo) — ce qui est câblé et ce qui ne l'est pas
+### Emails transactionnels (Brevo)
 
-- **Câblé** : email de bienvenue (`app/auth/callback/route.ts`, détecté par heuristique 1er login) et email de confirmation d'ajout d'événement (`features/events/actions.ts`), tous deux best-effort (un échec d'envoi ne bloque jamais le flux).
-- **Pas câblé** : les rappels programmés (« 30 min avant l'événement ») nécessitent un déclencheur planifié (`pg_cron`+`pg_net`, ou une Supabase Scheduled Function) qui n'a pas été mis en place dans cette passe. `EmailService.sendEventReminder` (dans `supabase/functions/_shared/email/`) existe déjà et fonctionne ; il ne manque que la brique qui l'appelle au bon moment.
+Email de bienvenue (`app/auth/callback/route.ts`, détecté par heuristique 1er login) et email de confirmation d'ajout d'événement (`features/events/actions.ts`), tous deux best-effort (un échec d'envoi ne bloque jamais le flux).
+
+### Rappels d'événements — vraies push notifications serveur
+
+Fonctionnent même app/onglet fermé, y compris sur écran verrouillé (son + vibration natifs). Toggle "Notifications push" dans Réglages (`components/settings/push-notifications-toggle.tsx`) → `Notification.requestPermission()` puis `pushManager.subscribe()`, la souscription (endpoint + clés) est stockée dans `push_subscriptions` (migration `00011`, RLS : chaque utilisateur ne voit/insère/supprime que la sienne).
+
+**Rappels entièrement paramétrables**, pas de presets figés : `components/ui/reminder-picker.tsx` (partagé entre le modal d'événement et Réglages) permet d'ajouter n'importe quelle valeur, en minutes, heures ou jours avant l'événement (`lib/utils/reminders.ts` fait la conversion vers des minutes pour le stockage, seule unité persistée en base). Défaut global : **30 min + 5 min** (`user_preferences.default_reminders`, migration `00012`) — préremplit chaque nouvel événement, modifiable au cas par cas, et l'utilisateur peut en ajouter autant qu'il veut au-delà des deux par défaut.
+
+En plus des rappels configurés, une notification est **toujours** envoyée au début de l'événement (offset `0`, implicite — jamais affiché comme option dans le picker, ni stocké dans `events.reminders`). Exemple : rappels à 1 h, 30 min et 5 min avant → 4 notifications au total (1h, 30min, 5min, + une au démarrage).
+
+Côté serveur : `pg_cron` appelle chaque minute (`select * from cron.job`) l'Edge Function `send-push-reminders`, qui scanne les événements des 7 prochains jours (avec 10 min de marge arrière, pour ne pas rater le rappel "démarrage" si un tick de cron est retardé), calcule les rappels dus non encore envoyés (`events.reminders_sent`, dédup par offset), puis pousse une notification via `npm:web-push` (VAPID) à tous les abonnements de l'utilisateur. Les abonnements expirés/révoqués (404/410 du push service) sont nettoyés automatiquement.
+
+Notification **persistante** (`requireInteraction: true` dans `worker/index.ts`, injecté dans le service worker généré via `customWorkerSrc`) : reste affichée jusqu'à ce que l'utilisateur clique dessus ou la balaie, au lieu de disparaître seule.
+
+**Secrets requis côté Supabase** (`npx supabase secrets set ...`) : `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (`mailto:...`), `CRON_SECRET` (jeton comparé par la fonction, jamais écrit dans une migration versionnée). **Côté Vercel** : `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (même valeur que `VAPID_PUBLIC_KEY`, safe côté client par design) — **pas encore ajoutée, à faire avant le prochain redéploiement**, sinon le toggle Réglages ne s'affichera pas correctement côté client.
+
+Pour repartir de zéro sur un autre projet Supabase :
+```bash
+npx web-push generate-vapid-keys
+npx supabase secrets set VAPID_PUBLIC_KEY=... VAPID_PRIVATE_KEY=... VAPID_SUBJECT="mailto:contact@example.com" CRON_SECRET="$(openssl rand -hex 32)"
+npx supabase db query --linked "select vault.create_secret('<même valeur que CRON_SECRET>', 'cron_secret');"
+npx supabase functions deploy send-push-reminders --no-verify-jwt
+```
+(La migration `00011` crée le job `cron.schedule('send-event-reminders', ...)` — pas besoin de le recréer, juste de seeder le secret Vault qu'il lit.)
 
 ## Avatars de profil
 
@@ -99,8 +121,8 @@ Vérifier l'installabilité : `npm run build && npm start`, puis Chrome DevTools
 
 Déployé : [https://plann-it-cyan.vercel.app](https://plann-it-cyan.vercel.app).
 
-1. ✅ **Supabase** : migrations appliquées, Edge Functions déployées, secrets configurés (sections ci-dessus).
-2. ⚠️ **Vercel** : ajouter `NEXT_PUBLIC_SITE_URL=https://plann-it-cyan.vercel.app` et `SUPABASE_SERVICE_ROLE_KEY` dans les env vars du projet (dashboard Vercel → Settings → Environment Variables) — pas encore fait depuis cette session. `NEXT_PUBLIC_SENTRY_DSN` + `SENTRY_*` restent optionnels.
+1. ✅ **Supabase** : les 12 migrations sont appliquées, les 4 Edge Functions (`google-calendar-oauth`, `google-calendar`, `send-email`, `send-push-reminders`) déployées, tous les secrets configurés (sections ci-dessus) — y compris le cron `send-event-reminders` (`* * * * *`), vérifié en exécution réelle (`cron.job_run_details` → `succeeded`, réponses HTTP 200).
+2. ⚠️ **Vercel** : ajouter `NEXT_PUBLIC_SITE_URL=https://plann-it-cyan.vercel.app`, `SUPABASE_SERVICE_ROLE_KEY` et `NEXT_PUBLIC_VAPID_PUBLIC_KEY` dans les env vars du projet (dashboard Vercel → Settings → Environment Variables) — pas encore fait depuis cette session. `NEXT_PUBLIC_SENTRY_DSN` + `SENTRY_*` restent optionnels.
 3. ⚠️ **Supabase Auth** : ajouter `https://plann-it-cyan.vercel.app/**` aux Redirect URLs autorisées (dashboard → Authentication → URL Configuration).
 4. ✅ **Google Cloud Console** : rien à changer.
-5. À vérifier de bout en bout une fois les points ⚠️ traités : "Continuer avec Google" → consentement (login + Calendar en un seul écran) → complétion profil → onboarding → dashboard → ajout d'événement → sync Google Calendar → email de confirmation.
+5. À vérifier de bout en bout une fois les points ⚠️ traités : "Continuer avec Google" → consentement (login + Calendar en un seul écran) → complétion profil → onboarding → dashboard → ajout d'événement avec rappel → activer les notifications push dans Réglages → sync Google Calendar → email de confirmation → notification push reçue à l'heure du rappel.

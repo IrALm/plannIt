@@ -21,9 +21,16 @@ type DashboardViewProps = {
   avatarUrl: string | null;
   events: CalendarEvent[];
   types: EventType[];
+  defaultReminders: number[];
 };
 
-export function DashboardView({ displayName, avatarUrl, events, types }: DashboardViewProps) {
+export function DashboardView({
+  displayName,
+  avatarUrl,
+  events,
+  types,
+  defaultReminders,
+}: DashboardViewProps) {
   const selectedDate = useCalendarStore((s) => s.selectedDate);
   const modalOpen = useUIStore((s) => s.modalOpen);
   const openAddModal = useUIStore((s) => s.openAddModal);
@@ -68,7 +75,12 @@ export function DashboardView({ displayName, avatarUrl, events, types }: Dashboa
       <Fab onClick={openAddModal} />
 
       {modalOpen && (
-        <EventModal types={types} event={editingEvent} defaultDate={selectedDate} />
+        <EventModal
+          types={types}
+          event={editingEvent}
+          defaultDate={selectedDate}
+          defaultReminders={defaultReminders}
+        />
       )}
     </div>
   );

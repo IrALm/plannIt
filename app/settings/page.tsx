@@ -11,6 +11,7 @@ import { AppearanceSection } from "@/components/settings/appearance-section";
 import { RemindersSection } from "@/components/settings/reminders-section";
 import { InstallCard } from "@/components/pwa/install-card";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { PushNotificationsToggle } from "@/components/settings/push-notifications-toggle";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -93,6 +94,15 @@ export default async function SettingsPage() {
       </div>
 
       <AppearanceSection />
+
+      <div>
+        <div className="font-mono text-[10px] tracking-[.14em] uppercase text-muted mb-2">
+          Notifications
+        </div>
+        <div className="bg-surface border border-line rounded-card px-[14px]">
+          <PushNotificationsToggle />
+        </div>
+      </div>
 
       <RemindersSection defaultReminders={prefs?.default_reminders ?? [30]} />
 

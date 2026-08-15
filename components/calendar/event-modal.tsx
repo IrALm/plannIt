@@ -7,7 +7,7 @@ import { X } from "lucide-react";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ToggleChip } from "@/components/ui/toggle-chip";
+import { ReminderPicker } from "@/components/ui/reminder-picker";
 import { Mascot } from "@/components/icons/mascot";
 import { TypeSelect } from "@/components/calendar/type-select";
 import { useUIStore } from "@/stores/ui.store";
@@ -16,16 +16,11 @@ import { createEventTypeAndReturn } from "@/features/calendar/actions";
 import { createEvent, updateEvent, deleteEvent } from "@/features/events/actions";
 import type { CalendarEvent } from "@/features/events/types";
 
-const REMINDER_PRESETS = [
-  { minutes: 30, label: "30 min" },
-  { minutes: 60, label: "1 h" },
-  { minutes: 120, label: "2 h" },
-];
-
 type EventModalProps = {
   types: EventType[];
   event?: CalendarEvent | null;
   defaultDate: Date;
+  defaultReminders: number[];
 };
 
 function toDateInput(date: Date) {
@@ -35,7 +30,7 @@ function toTimeInput(date: Date) {
   return format(date, "HH:mm");
 }
 
-export function EventModal({ types, event, defaultDate }: EventModalProps) {
+export function EventModal({ types, event, defaultDate, defaultReminders }: EventModalProps) {
   const router = useRouter();
   const modalOpen = useUIStore((s) => s.modalOpen);
   const modalMode = useUIStore((s) => s.modalMode);
@@ -46,7 +41,7 @@ export function EventModal({ types, event, defaultDate }: EventModalProps) {
   const [date, setDate] = useState(toDateInput(defaultDate));
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("10:00");
-  const [reminders, setReminders] = useState<number[]>([30]);
+  const [reminders, setReminders] = useState<number[]>(defaultReminders);
   const [availableTypes, setAvailableTypes] = useState<EventType[]>(types);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -72,16 +67,10 @@ export function EventModal({ types, event, defaultDate }: EventModalProps) {
       setDate(toDateInput(defaultDate));
       setStartTime("09:00");
       setEndTime("10:00");
-      setReminders([30]);
+      setReminders(defaultReminders);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalOpen, modalMode, event]);
-
-  function toggleReminder(minutes: number) {
-    setReminders((prev) =>
-      prev.includes(minutes) ? prev.filter((m) => m !== minutes) : [...prev, minutes]
-    );
-  }
 
   async function handleCreateType(name: string, color: Parameters<typeof createEventTypeAndReturn>[1]) {
     const created = await createEventTypeAndReturn(name, color);
@@ -192,17 +181,10 @@ export function EventModal({ types, event, defaultDate }: EventModalProps) {
           <div className="font-mono text-[10px] tracking-[.12em] uppercase text-muted mb-[6px]">
             Rappels
           </div>
-          <div className="flex gap-[9px] flex-wrap">
-            {REMINDER_PRESETS.map((preset) => (
-              <ToggleChip
-                key={preset.minutes}
-                size="sm"
-                label={preset.label}
-                selected={reminders.includes(preset.minutes)}
-                onClick={() => toggleReminder(preset.minutes)}
-              />
-            ))}
-          </div>
+          <ReminderPicker value={reminders} onChange={setReminders} />
+          <p className="text-[11.5px] text-muted mt-[6px]">
+            Une notification est aussi envoyée au début de l&apos;activité, en plus de ces rappels.
+          </p>
         </div>
 
         {error && (
